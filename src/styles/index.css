@@ -1,0 +1,364 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink: #ecebe5;
+  --color-muted: #9ba69f;
+  --color-subtle: #6b766f;
+  --color-night: #0a0c0b;
+  --color-charcoal: #141716;
+  --color-charcoal-2: #1b1f1d;
+  --color-line: #2a302d;
+  --color-felt: #0d3a28;
+  --color-felt-deep: #08281b;
+  --color-gold: #d8b46a;
+  --color-gold-bright: #ecca84;
+  --color-alert: #f07a62;
+  --color-card: #faf7f0;
+  --color-card-red: #c3132f;
+  --color-card-black: #16191a;
+
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --flip-ms: 520ms;
+  }
+
+  html,
+  body {
+    background-color: var(--color-night);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-image: radial-gradient(ellipse 80% 60% at 50% 0%, rgb(16 60 40 / 0.35), transparent 70%);
+    background-attachment: fixed;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold-bright);
+    outline-offset: 3px;
+  }
+}
+
+/* ───────────── Layout ───────────── */
+
+.game-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'board'
+    'grid'
+    'panel';
+}
+
+@media (min-width: 1024px) {
+  .game-layout {
+    gap: 1.5rem 2rem;
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'grid board'
+      'grid panel';
+  }
+}
+
+.area-board { grid-area: board; }
+.area-grid { grid-area: grid; }
+.area-panel { grid-area: panel; }
+
+.felt {
+  background-color: var(--color-felt);
+  background-image:
+    radial-gradient(ellipse at 50% 35%, rgb(255 255 255 / 0.06), transparent 65%),
+    radial-gradient(ellipse at 50% 120%, rgb(0 0 0 / 0.35), transparent 60%);
+  box-shadow:
+    inset 0 0 0 1px rgb(216 180 106 / 0.22),
+    inset 0 2px 30px rgb(0 0 0 / 0.45),
+    0 20px 50px -20px rgb(0 0 0 / 0.8);
+}
+
+/* The grid is sized by both width and the viewport height, so all four rows
+   stay on screen on short phones as well as on desktops. */
+.card-grid {
+  width: min(100%, 34rem, calc((100dvh - 19rem) / 1.46));
+  min-width: 15.5rem;
+}
+
+@media (min-width: 1024px) {
+  .card-grid {
+    width: min(100%, 36rem, calc((100dvh - 9.5rem) / 1.46));
+  }
+}
+
+/* ───────────── Playing cards ───────────── */
+
+.playing-card {
+  container-type: inline-size;
+  position: relative;
+  aspect-ratio: 5 / 7;
+  width: 100%;
+  perspective: 900px;
+}
+
+.playing-card__inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform var(--flip-ms) cubic-bezier(0.3, 0.7, 0.2, 1);
+  transition-delay: var(--flip-delay, 0ms);
+}
+
+.playing-card[data-face='down'] .playing-card__inner {
+  transform: rotateY(180deg);
+}
+
+.playing-card__face,
+.playing-card__back {
+  position: absolute;
+  inset: 0;
+  border-radius: 9cqi;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.playing-card__face {
+  background: var(--color-card);
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.08),
+    0 1px 0 rgb(255 255 255 / 0.6) inset,
+    0 6px 14px -6px rgb(0 0 0 / 0.7);
+  color: var(--color-card-black);
+  overflow: hidden;
+}
+
+.playing-card__face[data-red='true'] {
+  color: var(--color-card-red);
+}
+
+.playing-card__corner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.95;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.playing-card__corner--tl { top: 6cqi; left: 7cqi; }
+.playing-card__corner--br { bottom: 6cqi; right: 7cqi; transform: rotate(180deg); }
+
+.playing-card__corner-rank { font-size: 25cqi; font-family: var(--font-display); }
+.playing-card__corner-suit { font-size: 19cqi; }
+
+.playing-card__pip {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 50cqi;
+  line-height: 1;
+}
+
+.playing-card__pip--court {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 38cqi;
+}
+
+/* Hide small corner indices on tiny cards so the face stays legible. */
+@container (max-width: 44px) {
+  .playing-card__corner--br { display: none; }
+  .playing-card__pip { font-size: 46cqi; padding-top: 22cqi; }
+}
+
+/* Original card-back artwork: a gold lattice on deep green. */
+.playing-card__back {
+  transform: rotateY(180deg);
+  background-color: #0f4a33;
+  background-image:
+    repeating-linear-gradient(45deg, rgb(216 180 106 / 0.16) 0 1.5px, transparent 1.5px 9px),
+    repeating-linear-gradient(-45deg, rgb(216 180 106 / 0.16) 0 1.5px, transparent 1.5px 9px),
+    radial-gradient(circle at 50% 50%, #145c40, #0a3524 75%);
+  box-shadow:
+    inset 0 0 0 4cqi #f2ead8,
+    inset 0 0 0 5cqi rgb(216 180 106 / 0.8),
+    0 6px 14px -6px rgb(0 0 0 / 0.7);
+}
+
+.playing-card__back::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26cqi;
+  height: 26cqi;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 2.5cqi solid var(--color-gold);
+  background: #0a3524;
+  box-shadow: 0 0 0 2cqi #0a3524, 0 0 0 3cqi rgb(216 180 106 / 0.45);
+}
+
+.playing-card--placeholder {
+  border-radius: 9cqi;
+  border: 1.5px dashed rgb(216 180 106 / 0.35);
+  background: rgb(0 0 0 / 0.18);
+  display: grid;
+  place-items: center;
+  color: rgb(216 180 106 / 0.6);
+  font-family: var(--font-display);
+  font-size: 34cqi;
+}
+
+/* ───────────── Grid slots (selection states) ───────────── */
+
+.grid-slot {
+  position: relative;
+  display: block;
+  width: 100%;
+  border-radius: 0.6rem;
+  transition: transform 160ms ease, filter 200ms ease, opacity 300ms ease;
+  touch-action: manipulation;
+}
+
+.grid-slot:disabled {
+  cursor: default;
+}
+
+.grid-slot[data-selectable='true'] {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .grid-slot[data-selectable='true']:hover {
+    transform: translateY(-3px);
+  }
+  .grid-slot[data-selectable='true']:hover .playing-card__back {
+    filter: brightness(1.15);
+  }
+}
+
+.grid-slot[data-selectable='true']:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.grid-slot[data-selected='true'] {
+  transform: translateY(-5px);
+}
+
+.grid-slot[data-selected='true']::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 0.85rem;
+  border: 3px solid var(--color-gold-bright);
+  box-shadow: 0 0 22px rgb(236 202 132 / 0.45);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.grid-slot[data-dimmed='true'] {
+  opacity: 0.42;
+  filter: saturate(0.6);
+}
+
+.grid-slot[data-best='true']::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 0.85rem;
+  border: 2px dashed #7fd6a8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Poker-chip marker showing the pick order. */
+.chip {
+  position: absolute;
+  z-index: 3;
+  top: -0.55rem;
+  right: -0.55rem;
+  width: clamp(1.5rem, 30%, 2.1rem);
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: clamp(0.7rem, 2.6vw, 0.9rem);
+  color: #1d1606;
+  background:
+    radial-gradient(circle, var(--color-gold-bright) 0 52%, transparent 53%),
+    repeating-conic-gradient(#f8f1de 0 20deg, #b88c3c 20deg 40deg);
+  box-shadow: 0 0 0 2px #1d1606, 0 4px 10px rgb(0 0 0 / 0.6);
+  animation: chip-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.best-tag {
+  position: absolute;
+  z-index: 3;
+  bottom: -0.55rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.05rem 0.4rem;
+  border-radius: 9999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #062014;
+  background: #7fd6a8;
+  white-space: nowrap;
+}
+
+/* ───────────── Motion ───────────── */
+
+.deal-in {
+  animation: deal-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: var(--deal-delay, 0ms);
+}
+
+.fade-up {
+  animation: fade-up 380ms ease-out backwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+.timer-urgent {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes deal-in {
+  from { opacity: 0; transform: translateY(-14px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes chip-in {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulse {
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --flip-ms: 1ms; }
+  .deal-in,
+  .fade-up,
+  .chip,
+  .timer-urgent { animation: none; }
+  .grid-slot { transition: none; }
+}
