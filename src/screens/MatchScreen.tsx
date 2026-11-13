@@ -112,7 +112,7 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
     : false;
   const bestPositions = myOutcome && !anyoneFoundBest ? myOutcome.best.positions : [];
   const revealedGrid = view.grid.every((c): c is Card => c !== null) ? view.grid : null;
-  const selectable = view.phase === 'selecting' && !view.myLocked;
+  const selectable = view.phase === 'selecting' && !view.myLocked && (view.turn === null || view.turn === view.me);
 
   return (
     <div

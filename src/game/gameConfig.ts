@@ -78,7 +78,7 @@ export function isDifficulty(value: unknown): value is Difficulty {
   return typeof value === 'string' && (DIFFICULTY_ORDER as readonly string[]).includes(value);
 }
 
-/** Who you play against. Two players on one device and online play are planned. */
+/** Who you play against. Online play is planned. */
 export type GameMode = 'solo' | 'computer' | 'local';
 
 export const GAME_MODES: ReadonlyArray<{ readonly id: GameMode; readonly label: string; readonly summary: string }> = [

@@ -110,7 +110,9 @@ describe('Two players, one device', () => {
   it('leaving returns to the lobby and stops every timer', () => {
     startLocal();
     advance(MEDIUM.memorizeSeconds * 1000);
-    fireEvent.click(screen.getByRole('button', { name: 'Leave match' }));
+    fireEvent.click(screen.getByRole('button', { name: "I'm Ana, start my turn" }));
+    advance(1000); // mid-turn: select timer and countdown interval are live
+    fireEvent.click(screen.getByRole('button', { name: 'Exit to lobby' }));
     advance(60_000);
     expect(screen.getByRole('button', { name: 'Start medium game for two' })).toBeInTheDocument();
     expect(vi.getTimerCount()).toBe(0);

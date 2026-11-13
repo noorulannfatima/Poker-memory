@@ -81,15 +81,18 @@ src/
     picking.ts       the shared select/release/max-2 picking rule
     match.ts         multi-player match engine (matchReducer, tally, viewFor per-player views)
     computerPlayer.ts  computer opponent with level-dependent imperfect memory
-  app/             App shell, timer hooks (usePhaseTimer, useRemaining), useComputerMatch
+  app/             App shell, timer hooks (usePhaseTimer, useRemaining), useComputerMatch,
+                   useLocalMatch, matchActions, playerNames
   components/      PlayingCard, CardGrid, CommunityCards, CountdownTimer, GameHeader,
-                   PhaseInstructions, ResultPanel
-  screens/         LobbyScreen, GameScreen (solo), MatchScreen + ComputerMatchScreen (vs computer).
+                   PhaseInstructions, ResultPanel, Scoreboard, MatchResultPanel,
+                   HandoffScreen, HandCards
+  screens/         LobbyScreen, GameScreen (solo), MatchScreen, ComputerMatchScreen,
+                   LocalMatchScreen.
                    Results render inside the game screens so the revealed grid stays visible.
 ```
 
 - The reducer is pure: the dealt round and the current time arrive in actions.
 - Each phase is a separate union member, so impossible states can't be represented.
-- Timeout actions carry `phase` and `roundId`, and stale ones are ignored.
+- Timeout actions carry `phase` and `roundId` (and `turn` for sequential selecting), and stale ones are ignored.
 - Face-down cards receive `null` instead of the card, so hidden values never reach the DOM
   (a face lingers only for the ~0.5 s flip animation).

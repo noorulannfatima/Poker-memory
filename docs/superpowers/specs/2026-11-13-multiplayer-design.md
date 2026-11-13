@@ -89,7 +89,7 @@ The picking rule (a tap selects a position, tapping it again releases it, at mos
 ### What each player can see: `viewFor(state, playerId) → MatchView`
 
 - Face-down grid cards appear as `null`, so their values never reach the DOM or go over the network.
-- The opponent's picks are hidden until `revealing`. Before then the view only shows the opponent's status: `selecting`, `locked`, `waiting` (in sequential mode, not their turn yet), `reconnecting` or `left`.
+- The opponent's picks are hidden until `revealing`. Before then the view only shows the opponent's status: `selecting`, `locked`, `up-next` (sequential: not their turn yet), `waiting` (before the first deal), `reconnecting` or `left`.
 - On one device, the screen shows `viewFor(state, activePlayer)`.
 
 ## 2. Online server: `server/` (new)
@@ -161,7 +161,7 @@ Both hooks return `{ view: MatchView, actions }`, so `MatchScreen` can't tell wh
 
 - **`MatchScreen`:** the two-player game screen, built from the components above.
 - **Scoreboard strip** (in the header): `Ana 2 · 1 tie · 1 Ben`, with a marker on whoever is selecting.
-- **`HandoffScreen`** (one device): covers the whole screen and shows "Pass to Ben" with an "I'm Ben, show my turn" button. The grid isn't rendered while it's up.
+- **`HandoffScreen`** (one device): covers the whole screen and shows "Pass to Ben" with an "I'm Ben, start my turn" button. The grid isn't rendered while it's up.
 - **Opponent status** (online): "Selecting…", "Locked in ✓", "Reconnecting…" or "Opponent left" (with a **Back to lobby** button).
 - **`MatchResultPanel`:** both hands side by side, each player's picks outlined on the revealed grid in that player's color, a banner saying who won or that it's a tie, and the best possible pick. Buttons: **Next round** (online it shows "Waiting for Ben…" until both have pressed it) and **Leave**.
 

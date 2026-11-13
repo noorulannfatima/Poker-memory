@@ -133,7 +133,8 @@ function emptyPicks(players: readonly MatchPlayer[]): Record<PlayerId, PlayerPic
 }
 
 /**
- * Selection order for the current round (sequential mode). The first selector
+ * Selection order for the round being played, or about to be played once results
+ * are tallied (sequential mode). The first selector
  * moves along by one for every completed round, so nobody always goes last.
  */
 export function turnOrder(state: MatchState): PlayerId[] {

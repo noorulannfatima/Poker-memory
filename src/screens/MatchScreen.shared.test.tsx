@@ -48,6 +48,13 @@ function renderShared(state: MatchState) {
 }
 
 describe('MatchScreen on a shared device', () => {
+  it('does not offer a live grid to a viewer who is not the turn holder', () => {
+    const state = play(turn('p1', 0, 1).slice(0, 1));
+    const actions: MatchActions = { toggle: vi.fn(), submit: vi.fn(), nextRound: vi.fn(), beginTurn: vi.fn() };
+    render(<MatchScreen view={viewFor(state, 'p2')} actions={actions} onLeave={vi.fn()} />);
+    expect(screen.getByTestId('grid-slot-0')).toBeDisabled();
+  });
+
   it('the first handoff says who picks first, hides the grid and starts the turn on request', () => {
     const { actions } = renderShared(play([]));
     expect(screen.getByRole('heading', { name: 'Ana picks first' })).toBeInTheDocument();

@@ -285,6 +285,21 @@ describe('matchReducer — sequential (one device)', () => {
     expect(results.winner).toBe(B);
   });
 
+  it('both players timing out goes to reveal and ends in a tie', () => {
+    const aTurn = run(toHandoff(), [begin(A)]);
+    const bHandoff = run(aTurn, [turnTimeout(A, T0 + 60_000)]);
+    if (bHandoff.phase !== 'handoff') throw new Error();
+    const bTurn = run(bHandoff, [begin(B, T0 + 70_000)]);
+    const revealing = run(bTurn, [turnTimeout(B, T0 + 130_000)]);
+    expect(revealing.phase).toBe('revealing');
+    const results = run(revealing, [reveal()]);
+    if (results.phase !== 'results') throw new Error();
+    expect(results.selections[A]).toEqual({ positions: [], reason: 'timeout' });
+    expect(results.selections[B]).toEqual({ positions: [], reason: 'timeout' });
+    expect(results.winner).toBeNull();
+    expect(results.ties).toBe(1);
+  });
+
   it('ignores a selecting timeout that belongs to another turn', () => {
     const bTurn = run(toHandoff(), [...anaTurn(), begin(B)]);
     expect(run(bTurn, [turnTimeout(A, T0 + 99_000)])).toBe(bTurn);

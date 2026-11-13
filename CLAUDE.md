@@ -32,8 +32,8 @@ Full design: [docs/superpowers/specs/2026-11-13-multiplayer-design.md](docs/supe
 
 - **Modes:** Solo (unchanged), **Vs computer** (built), **Two players, one device**
   (pass-and-play, built) and **Online** (room code).
-- **Exactly 2 players.** Rounds go on with a running tally (wins plus ties). Both players press
-  Next round to continue.
+- **Exactly 2 players.** Rounds go on with a running tally (wins plus ties). Online, both players press
+  Next round to continue; on one device a single press is enough.
 - **Shared engine:** a pure `matchReducer` in `src/game/match.ts` runs in the browser (one device)
   and on the server (online). `viewFor(state, playerId)` hides face-down cards and the opponent's
   picks until the reveal.

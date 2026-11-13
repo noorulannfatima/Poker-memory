@@ -98,7 +98,7 @@ export function LobbyScreen({
           <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
             Play
           </legend>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
             {GAME_MODES.map((option) => (
               <label
                 key={option.id}
