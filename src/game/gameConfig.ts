@@ -78,13 +78,14 @@ export function isDifficulty(value: unknown): value is Difficulty {
   return typeof value === 'string' && (DIFFICULTY_ORDER as readonly string[]).includes(value);
 }
 
-/** Who you play against. Online play is planned. */
-export type GameMode = 'solo' | 'computer' | 'local';
+/** Ways to play. Online play needs the game server (npm run server). */
+export type GameMode = 'solo' | 'computer' | 'local' | 'online';
 
 export const GAME_MODES: ReadonlyArray<{ readonly id: GameMode; readonly label: string; readonly summary: string }> = [
   { id: 'solo', label: 'Solo', summary: 'Find the best hand you can.' },
   { id: 'computer', label: 'Vs computer', summary: 'Same grid, secret picks. Best hand wins.' },
   { id: 'local', label: 'Two players', summary: 'One device. Take turns and pass it over.' },
+  { id: 'online', label: 'Online', summary: 'Play a friend on another device.' },
 ];
 
 export const DEFAULT_MODE: GameMode = 'solo';

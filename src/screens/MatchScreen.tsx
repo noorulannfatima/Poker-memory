@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { MatchActions } from '../app/matchActions';
 import { useRemaining } from '../app/usePhaseTimer';
 import { CardGrid } from '../components/CardGrid';
@@ -16,6 +17,8 @@ interface MatchScreenProps {
   view: MatchView;
   actions: MatchActions;
   onLeave: () => void;
+  /** Online: connection notices shown under the scoreboard. */
+  banner?: ReactNode;
 }
 
 function OpponentStatus({ opponent }: { opponent: OpponentView }) {
@@ -59,7 +62,7 @@ function announcement(view: MatchView): string {
   }
 }
 
-export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
+export function MatchScreen({ view, actions, onLeave, banner }: MatchScreenProps) {
   const { settings } = view;
   const remaining = useRemaining(view.endsAt);
   const opponent = view.opponents[0] ?? null;
@@ -106,6 +109,11 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
     ) : null;
 
   const results = view.results;
+  // Online: this player is ready for the next round and the opponent isn't yet.
+  const waitingFor =
+    !shared && results?.ready.includes(view.me) && opponent && !results.ready.includes(opponent.id)
+      ? opponent.name
+      : null;
   const myOutcome = results?.outcomes[view.me];
   const anyoneFoundBest = results
     ? Object.values(results.outcomes).some((o) => o.kind === 'complete' && o.isBest)
@@ -126,6 +134,7 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
         {announcement(view)}
       </p>
       {scoreboard}
+      {banner}
 
       <main className="game-layout flex-1">
         <div className="area-board">
@@ -160,6 +169,7 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
               onNextRound={actions.nextRound}
               onLeave={onLeave}
               shared={shared}
+              waitingFor={waitingFor}
             />
           ) : view.phase !== 'results' ? (
             <PhaseInstructions

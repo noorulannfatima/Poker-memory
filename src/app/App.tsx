@@ -16,6 +16,11 @@ import { ComputerMatchScreen } from '../screens/ComputerMatchScreen';
 import { GameScreen } from '../screens/GameScreen';
 import { LobbyScreen } from '../screens/LobbyScreen';
 import { LocalMatchScreen } from '../screens/LocalMatchScreen';
+import { OnlineMatchScreen } from '../screens/OnlineMatchScreen';
+import { loadSession } from './onlineSession';
+import { serverUrl } from './serverUrl';
+import type { SocketFactory } from './socket';
+import type { OnlineIntent } from './useOnlineMatch';
 import { usePhaseTimer } from './usePhaseTimer';
 
 const DIFFICULTY_KEY = 'memory-poker:difficulty';
@@ -42,15 +47,24 @@ function save(key: string, value: string): void {
 interface AppProps {
   /** Injectable random source so tests can deal deterministic rounds. */
   random?: RandomFn;
+  /** Injectable socket for online-play tests. Defaults to a real WebSocket. */
+  createSocket?: SocketFactory;
 }
 
-export function App({ random = cryptoRandom }: AppProps) {
+export function App({ random = cryptoRandom, createSocket }: AppProps) {
   const [state, dispatch] = useReducer(gameReducer, initialGameState);
   const [difficulty, setDifficulty] = useState<Difficulty>(() => load(DIFFICULTY_KEY, isDifficulty, DEFAULT_DIFFICULTY));
   const [mode, setMode] = useState<GameMode>(() => load(MODE_KEY, isGameMode, DEFAULT_MODE));
   const [names, setNames] = useState<[string, string]>(['', '']);
   /** The running match (vs computer or one device), or null in solo/lobby. */
-  const [match, setMatch] = useState<{ mode: Exclude<GameMode, 'solo'>; names: [string, string] } | null>(null);
+  const [match, setMatch] = useState<{ mode: 'computer' | 'local'; names: [string, string] } | null>(null);
+  const [onlineName, setOnlineName] = useState('');
+  // A saved session means this tab was in an online room before a reload: resume it.
+  const [online, setOnline] = useState<OnlineIntent | null>(() => {
+    const saved = loadSession();
+    return saved ? { type: 'resume', roomCode: saved.roomCode, token: saved.token } : null;
+  });
+  const [onlineError, setOnlineError] = useState<string | null>(null);
   const nextRoundId = useRef(1);
 
   const deadline = 'endsAt' in state ? { phase: state.phase, endsAt: state.endsAt, roundId: state.round.id } : null;
@@ -81,11 +95,38 @@ export function App({ random = cryptoRandom }: AppProps) {
       startSoloRound();
       return;
     }
+    if (mode === 'online') {
+      setOnlineError(null);
+      setOnline({ type: 'create', name: onlineName, difficulty });
+      return;
+    }
     setMatch({ mode, names: normalizeNames(names) });
     window.scrollTo?.({ top: 0 });
-  }, [mode, names, startSoloRound]);
+  }, [mode, names, startSoloRound, onlineName, difficulty]);
 
   const leaveMatch = useCallback(() => setMatch(null), []);
+
+  const joinRoom = useCallback(
+    (roomCode: string) => {
+      setOnlineError(null);
+      setOnline({ type: 'join', roomCode, name: onlineName });
+    },
+    [onlineName],
+  );
+
+  const exitOnline = useCallback(
+    (error: string | null) => {
+      setOnline(null);
+      setOnlineError(error);
+      // Show the error where it belongs, even after a resume from a reload.
+      if (error) changeMode('online');
+    },
+    [changeMode],
+  );
+
+  if (online) {
+    return <OnlineMatchScreen intent={online} url={serverUrl()} createSocket={createSocket} onExit={exitOnline} />;
+  }
 
   if (match?.mode === 'computer') {
     return <ComputerMatchScreen difficulty={difficulty} random={random} onLeave={leaveMatch} />;
@@ -103,6 +144,10 @@ export function App({ random = cryptoRandom }: AppProps) {
         names={names}
         onNamesChange={setNames}
         onStart={start}
+        onlineName={onlineName}
+        onOnlineNameChange={setOnlineName}
+        onJoin={joinRoom}
+        onlineError={onlineError}
       />
     );
   }

@@ -106,6 +106,7 @@ The picking rule (a tap selects a position, tapping it again releases it, at mos
 - **Room codes:** 4 letters from an alphabet without look-alike characters (no `O`/`0` or `I`/`1`). Codes are matched without regard to case.
 - **Each room** stores the `MatchState`, two player slots (`socket`, `token`, `connected`, `graceTimer`) and the active phase timer.
 - A room closes 10 minutes after its last activity, or when either player leaves or misses the grace window. Closing a room clears all of its timers.
+- A closed room is kept for 10 minutes so late joins and resumes get room-closed, then it is forgotten.
 
 ### The server keeps the time
 
@@ -169,8 +170,9 @@ Both hooks return `{ view: MatchView, actions }`, so `MatchScreen` can't tell wh
 
 - **Joining:** `room-not-found`, `room-full` and `room-closed` appear as messages in the lobby.
 - **Server unreachable or connection lost:** the browser retries with increasing delays (1 s, 2 s, 4 s and so on) for up to 30 s, with a "Reconnecting…" banner. After that it shows "Connection lost" and returns to the lobby. This matches the server's grace window.
+- **First connection:** if the very first connection fails before the room is joined, the browser shows "Couldn't reach the game server" instead of retrying, since resending create or join could duplicate a room.
 - **Bad messages:** the server ignores and logs JSON it can't parse, unknown message types and invalid positions. Limits: 1 KB per message and 20 messages per second per socket. A socket that goes over either limit is disconnected.
-- **Leaving or closing the tab:** sends `leave` (also on `pagehide`), so the opponent sees "Opponent left" right away. If that message never arrives, the grace window covers it.
+- **Leaving:** the Leave and Exit buttons send leave, so the opponent sees "Opponent left" right away. Closing the tab does not send leave, because pagehide also fires on reload, which must resume. The 30 s grace window covers a closed tab.
 
 ## 5. Testing (Vitest)
 

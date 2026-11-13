@@ -15,9 +15,11 @@ interface MatchResultPanelProps {
   onLeave: () => void;
   /** One device: name both players instead of saying "you". */
   shared?: boolean;
+  /** Online: this player pressed Next round and is waiting for this opponent. */
+  waitingFor?: string | null;
 }
 
-export function MatchResultPanel({ me, players, grid, results, onNextRound, onLeave, shared = false }: MatchResultPanelProps) {
+export function MatchResultPanel({ me, players, grid, results, onNextRound, onLeave, shared = false, waitingFor = null }: MatchResultPanelProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -110,9 +112,10 @@ export function MatchResultPanel({ me, players, grid, results, onNextRound, onLe
         <button
           type="button"
           onClick={onNextRound}
-          className="flex-1 rounded-xl bg-gold px-5 py-3.5 font-semibold text-night shadow-[0_8px_24px_-10px_rgb(216_180_106/0.7)] transition hover:bg-gold-bright active:translate-y-px"
+          disabled={waitingFor !== null}
+          className="flex-1 rounded-xl bg-gold px-5 py-3.5 font-semibold text-night shadow-[0_8px_24px_-10px_rgb(216_180_106/0.7)] transition hover:bg-gold-bright active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Next round
+          {waitingFor !== null ? `Waiting for ${waitingFor}…` : 'Next round'}
         </button>
         <button
           type="button"

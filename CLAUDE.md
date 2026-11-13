@@ -7,6 +7,7 @@ and the architecture are in [README.md](README.md).
 
 ```bash
 npm run dev        # dev server
+npm run server     # online-play game server (ws://localhost:8787/ws)
 npm test           # Vitest (unit + UI flow)
 npm run lint
 npm run typecheck
@@ -25,13 +26,14 @@ Run `npm test`, `npm run lint` and `npm run typecheck` before calling work done.
 - Face-down cards are `null` in anything that is rendered or sent over the network. Hidden card
   values must never reach the DOM or go over the network.
 - Tunable settings belong in `src/game/gameConfig.ts`.
+- `src/net` is shared with the Node server: no React, DOM or Node APIs.
 
 ## Multiplayer (in progress)
 
 Full design: [docs/superpowers/specs/2026-11-13-multiplayer-design.md](docs/superpowers/specs/2026-11-13-multiplayer-design.md)
 
 - **Modes:** Solo (unchanged), **Vs computer** (built), **Two players, one device**
-  (pass-and-play, built) and **Online** (room code).
+  (pass-and-play, built) and **Online** (room code, built).
 - **Exactly 2 players.** Rounds go on with a running tally (wins plus ties). Online, both players press
   Next round to continue; on one device a single press is enough.
 - **Shared engine:** a pure `matchReducer` in `src/game/match.ts` runs in the browser (one device)
@@ -55,5 +57,5 @@ Full design: [docs/superpowers/specs/2026-11-13-multiplayer-design.md](docs/supe
      `sequential` with `handoff`)
   2. Narrower component props — done (`CardGrid`, `PhaseInstructions` take explicit props)
   3. Two players on one device — done (`useLocalMatch`, `LocalMatchScreen`, `HandoffScreen`)
-  4. Server
-  5. Online client
+  4. Server — done
+  5. Online client — done

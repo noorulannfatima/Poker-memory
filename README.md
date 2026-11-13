@@ -66,10 +66,31 @@ alternates every round. Both hands are revealed together, and the stronger hand 
 (`compareOutcomes`: a complete hand beats an incomplete one, and equal hands tie). A running
 tally counts wins and ties.
 
+## Online play
+
+One player chooses **Online → Create room** and shares the 4-letter code. The other chooses
+**Online**, types the code and presses **Join room**. Both play the same grid at the same time on
+their own devices, and the stronger hand wins the round. The game server deals, keeps time and
+scores, and it never sends a face-down card to a device. If a connection drops, the game keeps
+running and the player has 30 s to come back: reconnecting is automatic, and a reload works too.
+After that the room closes. An unused room closes after 10 minutes.
+
+```bash
+npm run server          # the game server on ws://localhost:8787/ws (restarts on changes)
+npm run dev -- --host   # the app; Vite proxies /ws to the server. --host lets phones on your Wi-Fi join
+```
+
+To deploy, run `npm install && npm run start:server` on a Node 20+ host (it listens on `$PORT`),
+and build the app with `VITE_SERVER_URL=wss://<your-server>/ws npm run build`.
+
 ## Architecture
 
 ```
+server/
+  rooms.ts, wsServer.ts, main.ts   Node room logic, WebSocket server and entry point
 src/
+  net/
+    protocol.ts      the message format shared with the server
   game/            framework-free rules (reusable on a server later)
     gameTypes.ts     Card, Round, FinalSelection
     gameConfig.ts    all tunable settings
@@ -82,12 +103,12 @@ src/
     match.ts         multi-player match engine (matchReducer, tally, viewFor per-player views)
     computerPlayer.ts  computer opponent with level-dependent imperfect memory
   app/             App shell, timer hooks (usePhaseTimer, useRemaining), useComputerMatch,
-                   useLocalMatch, matchActions, playerNames
+                   useLocalMatch, useOnlineMatch, socket, onlineSession, matchActions, playerNames
   components/      PlayingCard, CardGrid, CommunityCards, CountdownTimer, GameHeader,
                    PhaseInstructions, ResultPanel, Scoreboard, MatchResultPanel,
-                   HandoffScreen, HandCards
+                   HandoffScreen, HandCards, WaitingRoom
   screens/         LobbyScreen, GameScreen (solo), MatchScreen, ComputerMatchScreen,
-                   LocalMatchScreen.
+                   LocalMatchScreen, OnlineMatchScreen.
                    Results render inside the game screens so the revealed grid stays visible.
 ```
 
