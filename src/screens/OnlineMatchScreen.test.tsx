@@ -59,6 +59,7 @@ describe('Online play', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Room code' }), { target: { value: 'k-q p z9' } });
     expect(screen.getByRole('textbox', { name: 'Room code' })).toHaveValue('KQPZ');
     expect(join).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'How to play' }));
     expect(screen.getByText(/Your opponent picks at the same time on their own device/)).toBeInTheDocument();
   });
 

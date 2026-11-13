@@ -44,8 +44,11 @@ describe('App — single-player round', () => {
   it('shows the lobby with the configured phase durations', () => {
     render(<App />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Memory Poker');
-    expect(screen.getByText(`${MEDIUM.memorizeSeconds}s`)).toBeInTheDocument();
-    expect(screen.getByText(`${MEDIUM.selectSeconds}s`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'How to play' }));
+    const dialog = screen.getByRole('dialog', { name: 'How a round works' });
+    expect(within(dialog).getByText(`${MEDIUM.memorizeSeconds}s`)).toBeInTheDocument();
+    expect(within(dialog).getByText(`${MEDIUM.selectSeconds}s`)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close how to play' }));
     expect(screen.getByRole('button', { name: START })).toBeEnabled();
   });
 
@@ -232,5 +235,34 @@ describe('App — difficulty levels', () => {
     unmount();
     render(<App />);
     expect(screen.getByRole('radio', { name: /^Difficult/ })).toBeChecked();
+  });
+});
+
+describe('App — how to play', () => {
+  it('opens the round guide from the lobby and closes it again', () => {
+    render(<App />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    const open = screen.getByRole('button', { name: 'How to play' });
+    fireEvent.click(open);
+    const dialog = screen.getByRole('dialog', { name: 'How a round works' });
+    expect(within(dialog).getByText(/16 cards are dealt face-up in a 4×4 grid/)).toBeInTheDocument();
+    expect(within(dialog).getByText('Hand rankings, strongest first')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Close how to play' })).toHaveFocus();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close how to play' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(open).toHaveFocus();
+  });
+
+  it('follows the chosen level and closes with Escape', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('radio', { name: /^Easy/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'How to play' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/9 cards are dealt face-up in a 3×3 grid/)).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

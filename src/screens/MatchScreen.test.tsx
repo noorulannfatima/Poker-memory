@@ -36,6 +36,7 @@ describe('Vs computer', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('radio', { name: /^Vs computer/ }));
     expect(screen.getByText(/The computer remembers most cards/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'How to play' }));
     expect(screen.getByText(/The computer secretly picks 2 at the same time/)).toBeInTheDocument();
   });
 

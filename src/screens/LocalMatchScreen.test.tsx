@@ -42,6 +42,7 @@ describe('Two players, one device', () => {
   it('describes the mode in the lobby', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('radio', { name: /^Two players/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'How to play' }));
     expect(screen.getByText(/Pass the device between turns/)).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Player 1' })).toBeInTheDocument();
   });

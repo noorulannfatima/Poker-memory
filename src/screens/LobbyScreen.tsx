@@ -1,4 +1,5 @@
-import { useState, type CSSProperties } from 'react';
+import { useRef, useState } from 'react';
+import { HowToPlayDialog } from '../components/HowToPlayDialog';
 import { DEFAULT_NAMES, MAX_NAME_LENGTH } from '../app/playerNames';
 import {
   DIFFICULTIES,
@@ -8,11 +9,9 @@ import {
   describeComputerMemory,
   gridSize,
   type Difficulty,
-  type DifficultySettings,
   type GameMode,
 } from '../game/gameConfig';
 import { NET_CONFIG, isRoomCode, normalizeRoomCode } from '../net/protocol';
-import { CATEGORY_LABEL, type HandCategory } from '../game/pokerEvaluator';
 
 interface LobbyScreenProps {
   difficulty: Difficulty;
@@ -29,55 +28,6 @@ interface LobbyScreenProps {
   onlineError: string | null;
 }
 
-function stepsFor(settings: DifficultySettings, mode: GameMode) {
-  const versus = mode !== 'solo';
-  const { communityCount, picksRequired } = GAME_CONFIG;
-  return [
-    {
-      title: 'Memorize',
-      time: `${settings.memorizeSeconds}s`,
-      body: `${gridSize(settings)} cards are dealt face-up in a ${settings.gridColumns}×${settings.gridRows} grid. Remember where they are.`,
-    },
-    {
-      title: 'The board',
-      time: null,
-      body: `The grid flips face-down and ${communityCount} community cards are revealed.`,
-    },
-    {
-      title: 'Select',
-      time: `${settings.selectSeconds}s`,
-      body:
-        mode === 'computer'
-          ? `Pick ${picksRequired} face-down grid positions from memory. The computer secretly picks ${picksRequired} at the same time, and you may both pick the same card.`
-          : mode === 'online'
-            ? `Pick ${picksRequired} face-down grid positions from memory. Your opponent picks at the same time on their own device, and you may both pick the same card.`
-            : mode === 'local'
-            ? `Players take turns picking ${picksRequired} face-down grid positions, each with their own ${settings.selectSeconds}s. Pass the device between turns, and look away while the other player picks.`
-            : `Pick ${picksRequired} face-down grid positions from memory. You can change your mind until you lock in.`,
-    },
-    {
-      title: 'Reveal',
-      time: null,
-      body: versus
-        ? `Both sets of picks are revealed. Each player's ${picksRequired} picks plus the ${communityCount} community cards make a five-card hand, and the higher hand wins the round.`
-        : `The grid flips back. Your ${picksRequired} picks plus the ${communityCount} community cards make your five-card hand.`,
-    },
-  ];
-}
-
-const RANKING: Array<[HandCategory, string]> = [
-  ['royal-flush', 'A K Q J 10, same suit'],
-  ['straight-flush', 'Five in a row, same suit'],
-  ['four-of-a-kind', 'Four cards of one rank'],
-  ['full-house', 'Three of a kind + a pair'],
-  ['flush', 'Five of the same suit'],
-  ['straight', 'Five in a row (A can be low: A-2-3-4-5)'],
-  ['three-of-a-kind', 'Three cards of one rank'],
-  ['two-pair', 'Two different pairs'],
-  ['pair', 'Two cards of one rank'],
-  ['high-card', 'None of the above'],
-];
-
 export function LobbyScreen({
   difficulty,
   onDifficultyChange,
@@ -92,11 +42,35 @@ export function LobbyScreen({
   onlineError,
 }: LobbyScreenProps) {
   const [roomCode, setRoomCode] = useState('');
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
+  const howToPlayButton = useRef<HTMLButtonElement>(null);
   const settings = DIFFICULTIES[difficulty];
-  const steps = stepsFor(settings, mode);
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col justify-center px-4 py-10 sm:px-6 sm:py-16">
+    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col justify-center px-4 pb-10 pt-20 sm:px-6 sm:py-16">
+      <button
+        ref={howToPlayButton}
+        type="button"
+        onClick={() => setHowToPlayOpen(true)}
+        aria-haspopup="dialog"
+        className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-line bg-charcoal/80 py-2 pl-2.5 pr-4 text-sm font-semibold text-ink/90 transition hover:border-gold/50 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-bright sm:left-6 sm:top-6"
+      >
+        <span
+          className="grid size-6 place-items-center rounded-full border border-gold/50 font-display text-sm text-gold"
+          aria-hidden="true"
+        >
+          ?
+        </span>
+        How to play
+      </button>
+      {howToPlayOpen && (
+        <HowToPlayDialog
+          settings={settings}
+          mode={mode}
+          onClose={() => setHowToPlayOpen(false)}
+          returnFocusTo={howToPlayButton}
+        />
+      )}
       <div className="fade-up text-center">
         <LogoMark />
         <h1 className="mt-6 font-display text-5xl font-semibold tracking-tight text-ink sm:text-6xl">
@@ -260,57 +234,6 @@ export function LobbyScreen({
         </button>
       </div>
 
-      <section aria-labelledby="how-heading" className="fade-up mt-14" style={{ '--delay': '120ms' } as CSSProperties}>
-        <h2 id="how-heading" className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
-          How a round works
-        </h2>
-        <ol className="mt-5 grid gap-3 sm:grid-cols-2">
-          {steps.map((step, i) => (
-            <li key={step.title} className="flex gap-4 rounded-2xl border border-line bg-charcoal/70 p-4">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/40 font-display text-base font-semibold text-gold">
-                {i + 1}
-              </span>
-              <div>
-                <h3 className="flex items-baseline gap-2 font-semibold text-ink">
-                  {step.title}
-                  {step.time && (
-                    <span className="rounded-full bg-felt px-2 py-0.5 text-xs font-semibold tabular-nums text-gold-bright">
-                      {step.time}
-                    </span>
-                  )}
-                </h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted">{step.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-
-        <div className="mt-4 rounded-2xl border border-line bg-charcoal/40 p-4 text-sm leading-relaxed text-muted">
-          <p>
-            <strong className="font-semibold text-ink">Exactly five cards count:</strong> your{' '}
-            {GAME_CONFIG.picksRequired} picks + the {GAME_CONFIG.communityCount} community cards.
-          </p>
-          <p className="mt-2">
-            <strong className="font-semibold text-ink">If time runs out:</strong> whatever you’ve chosen is
-            locked in. With fewer than {GAME_CONFIG.picksRequired} picks there’s no five-card hand, so the round
-            scores as an <em>incomplete hand</em>.
-          </p>
-        </div>
-
-        <details className="group mt-4 rounded-2xl border border-line bg-charcoal/40 p-4 text-sm">
-          <summary className="cursor-pointer select-none font-semibold text-ink marker:text-gold">
-            Hand rankings, strongest first
-          </summary>
-          <ol className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
-            {RANKING.map(([category, hint]) => (
-              <li key={category} className="flex justify-between gap-3 border-b border-line/60 pb-1.5">
-                <span className="font-medium text-ink">{CATEGORY_LABEL[category]}</span>
-                <span className="text-right text-subtle">{hint}</span>
-              </li>
-            ))}
-          </ol>
-        </details>
-      </section>
     </main>
   );
 }
