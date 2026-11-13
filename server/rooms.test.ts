@@ -216,6 +216,38 @@ describe('RoomServer — bad input', () => {
   });
 });
 
+describe('RoomServer — bounded room creation', () => {
+  it('stops a connection that creates and leaves too many rooms', () => {
+    const conn = new FakeConn();
+    for (let i = 0; i < NET_CONFIG.maxRoomsPerConnection; i++) {
+      say(conn, { type: 'create', name: 'Ana', difficulty: 'medium' });
+      say(conn, { type: 'leave' });
+    }
+    say(conn, { type: 'create', name: 'Ana', difficulty: 'medium' });
+    expect(conn.last('error').code).toBe('server-busy');
+  });
+
+  it('refuses new rooms once the server holds the maximum', () => {
+    for (let i = 0; i < NET_CONFIG.maxRooms; i++) {
+      say(new FakeConn(), { type: 'create', name: 'Ana', difficulty: 'medium' });
+    }
+    const late = new FakeConn();
+    say(late, { type: 'create', name: 'Late', difficulty: 'medium' });
+    expect(late.last('error').code).toBe('server-busy');
+  });
+
+  it('gives up finding a free code instead of hanging', () => {
+    server.shutdown();
+    server = new RoomServer({ random: () => 0 });
+    const first = new FakeConn();
+    say(first, { type: 'create', name: 'Ana', difficulty: 'medium' });
+    expect(first.last('joined').roomCode).toBe(ROOM_CODE_ALPHABET.charAt(0).repeat(4));
+    const second = new FakeConn();
+    say(second, { type: 'create', name: 'Ben', difficulty: 'medium' });
+    expect(second.last('error').code).toBe('server-busy');
+  });
+});
+
 describe('RoomServer — leaving and reconnecting', () => {
   it('a dropped player can resume within 30 s and keeps their picks', () => {
     const { ana, ben, code } = startMatch();
@@ -266,6 +298,7 @@ describe('RoomServer — leaving and reconnecting', () => {
     expect(room.closed).toBe(true);
     expect(room.players[0]?.presence).toBe('left');
 
+    expect(vi.getTimerCount()).toBe(1); // only the forget timer remains
     const count = ben.sent.length;
     advance(MEMORIZE_MS + SELECT_MS);
     expect(ben.sent).toHaveLength(count);

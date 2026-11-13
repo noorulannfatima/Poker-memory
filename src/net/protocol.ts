@@ -17,13 +17,17 @@ export const NET_CONFIG = {
   /** Messages one connection may send per second before it is cut off. */
   maxMessagesPerSecond: 20,
   maxNameLength: 16,
+  /** Rooms held at once, open or recently closed. */
+  maxRooms: 1000,
+  /** How many rooms one connection may create over its lifetime. */
+  maxRoomsPerConnection: 5,
 } as const;
 
 export const ROOM_CODE_LENGTH = 4;
 /** Letters only, without look-alikes (no I or O). */
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 
-export type ErrorCode = 'room-not-found' | 'room-full' | 'room-closed' | 'bad-token';
+export type ErrorCode = 'room-not-found' | 'room-full' | 'room-closed' | 'bad-token' | 'server-busy';
 
 export type Presence = 'connected' | 'reconnecting' | 'left';
 

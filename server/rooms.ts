@@ -53,6 +53,7 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   'room-full': 'That room is already full.',
   'room-closed': 'That game has ended.',
   'bad-token': 'That game has ended.',
+  'server-busy': 'The server is busy. Try again in a few minutes.',
 };
 
 const encoder = new TextEncoder();
@@ -66,6 +67,7 @@ export class RoomServer {
   private readonly rooms = new Map<string, Room>();
   private readonly seated = new Map<Connection, { room: Room; seat: Seat }>();
   private readonly rates = new Map<Connection, { start: number; count: number }>();
+  private readonly creates = new Map<Connection, number>();
   private readonly random: RandomFn;
   private readonly log: (message: string) => void;
 
@@ -111,6 +113,7 @@ export class RoomServer {
   /** The connection closed. Its player gets a grace period to resume. */
   disconnect(conn: Connection): void {
     this.rates.delete(conn);
+    this.creates.delete(conn);
     const at = this.seated.get(conn);
     if (!at) return;
     this.seated.delete(conn);
@@ -131,12 +134,17 @@ export class RoomServer {
     this.rooms.clear();
     this.seated.clear();
     this.rates.clear();
+    this.creates.clear();
   }
 
   private create(conn: Connection, name: string, difficulty: Difficulty): void {
     if (this.seated.has(conn)) return;
+    const made = this.creates.get(conn) ?? 0;
+    const code = this.rooms.size >= NET_CONFIG.maxRooms || made >= NET_CONFIG.maxRoomsPerConnection ? null : this.newCode();
+    if (code === null) return this.fail(conn, 'server-busy');
+    this.creates.set(conn, made + 1);
     const room: Room = {
-      code: this.newCode(),
+      code,
       difficulty,
       seats: [],
       match: null,
@@ -168,6 +176,7 @@ export class RoomServer {
     room.match = createMatch({
       players: room.seats.map((s) => ({ id: s.id, name: s.name })),
       difficulty: room.difficulty,
+      turnMode: 'simultaneous',
     });
     this.dispatch(room, { type: 'START_ROUND', round: this.deal(room), now: Date.now() });
   }
@@ -302,14 +311,16 @@ export class RoomServer {
     return { id, name, token: crypto.randomUUID(), conn: null, left: false, graceTimer: null };
   }
 
-  private newCode(): string {
-    for (;;) {
+  /** A free room code, or null if 20 random tries all collide. */
+  private newCode(): string | null {
+    for (let attempt = 0; attempt < 20; attempt++) {
       let code = '';
       for (let i = 0; i < ROOM_CODE_LENGTH; i++) {
         code += ROOM_CODE_ALPHABET.charAt(Math.floor(this.random() * ROOM_CODE_ALPHABET.length));
       }
       if (!this.rooms.has(code)) return code;
     }
+    return null;
   }
 
   private overRate(conn: Connection): boolean {
