@@ -22,4 +22,9 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    // The online game server runs on Node.
+    files: ['server/**/*.ts'],
+    languageOptions: { globals: globals.node },
+  },
 );
