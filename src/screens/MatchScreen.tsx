@@ -23,6 +23,7 @@ function OpponentStatus({ opponent }: { opponent: OpponentView }) {
     memorizing: `${opponent.name} is memorizing the same grid.`,
     selecting: `${opponent.name} is choosing…`,
     locked: `${opponent.name} has locked in ✓`,
+    'up-next': `${opponent.name} picks next.`,
     revealed: `${opponent.name}’s picks are outlined in blue.`,
   };
   const active = opponent.status === 'selecting' || opponent.status === 'memorizing';
@@ -48,6 +49,8 @@ function announcement(view: MatchView): string {
       return `${settings.label} level. Memorize the grid of ${view.grid.length} cards. ${settings.memorizeSeconds} seconds.`;
     case 'selecting':
       return `Cards are face-down and the community cards are revealed. Choose ${GAME_CONFIG.picksRequired} cards within ${settings.selectSeconds} seconds.`;
+    case 'handoff':
+      return 'Turn over. Pass the device to the next player.';
     case 'revealing':
       return 'Selection closed. Revealing both players’ picks.';
     case 'results':
@@ -67,6 +70,8 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
       </div>
     );
   }
+
+  if (view.phase === 'handoff') return null;
 
   const timer =
     view.phase === 'memorizing' ? (

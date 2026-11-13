@@ -14,12 +14,16 @@ import { compareOutcomes, scoreRound, type RoundOutcome } from './scoring';
  *                 ↑                                         │
  *                 └──── START_ROUND (once all are ready) ───┘
  *
- * Only `simultaneous` turns are implemented: every player selects under one
- * timer. `sequential` (pass-and-play with a handoff) arrives with one-device mode.
+ * Turn modes:
+ * - `simultaneous` (vs computer, online): every player selects under one timer.
+ * - `sequential` (one device): after memorizing, each player selects in turn with
+ *   a full timer. A `handoff` phase (no timer, grid hidden) comes before every turn,
+ *   so the other player can look away. The first selector moves along by one
+ *   each round.
  */
 
 export type PlayerId = string;
-export type TurnMode = 'simultaneous';
+export type TurnMode = 'simultaneous' | 'sequential';
 
 export interface MatchPlayer {
   readonly id: PlayerId;
@@ -29,7 +33,10 @@ export interface MatchPlayer {
 
 export interface PlayerPicks {
   readonly selected: readonly number[];
+  /** Submitted with Lock in. */
   readonly locked: boolean;
+  /** Sequential: this player's own turn timer ran out. */
+  readonly timedOut: boolean;
 }
 
 type PhaseState =
@@ -40,6 +47,15 @@ type PhaseState =
       readonly round: Round;
       readonly endsAt: number;
       readonly picks: Readonly<Record<PlayerId, PlayerPicks>>;
+      /** Sequential: whose turn it is. Simultaneous: null. */
+      readonly turn: PlayerId | null;
+    }
+  | {
+      readonly phase: 'handoff';
+      readonly round: Round;
+      readonly picks: Readonly<Record<PlayerId, PlayerPicks>>;
+      /** Who selects next; their timer starts with BEGIN_TURN. */
+      readonly next: PlayerId;
     }
   | {
       readonly phase: 'revealing';
@@ -73,11 +89,14 @@ export type MatchAction =
   | { readonly type: 'START_ROUND'; readonly round: Round; readonly now: number }
   | { readonly type: 'TOGGLE_POSITION'; readonly playerId: PlayerId; readonly position: number }
   | { readonly type: 'SUBMIT_SELECTION'; readonly playerId: PlayerId; readonly now: number }
+  | { readonly type: 'BEGIN_TURN'; readonly playerId: PlayerId; readonly now: number }
   | {
       readonly type: 'PHASE_TIMEOUT';
       readonly phase: MatchTimedPhase;
       readonly roundId: number;
       readonly now: number;
+      /** Sequential selecting: whose turn this timer belongs to. */
+      readonly turn?: PlayerId | null;
     }
   | { readonly type: 'NEXT_ROUND'; readonly playerId: PlayerId };
 
@@ -103,6 +122,45 @@ function base(state: MatchState): MatchBase {
 
 const hasPlayer = (state: MatchState, id: PlayerId) => state.players.some((p) => p.id === id);
 
+type SelectingState = Extract<MatchState, { phase: 'selecting' }>;
+
+const isDone = (picks: PlayerPicks | undefined): boolean => !!picks && (picks.locked || picks.timedOut);
+
+function emptyPicks(players: readonly MatchPlayer[]): Record<PlayerId, PlayerPicks> {
+  const picks: Record<PlayerId, PlayerPicks> = {};
+  for (const { id } of players) picks[id] = { selected: [], locked: false, timedOut: false };
+  return picks;
+}
+
+/**
+ * Selection order for the current round (sequential mode). The first selector
+ * moves along by one for every completed round, so nobody always goes last.
+ */
+export function turnOrder(state: MatchState): PlayerId[] {
+  const ids = state.players.map((p) => p.id);
+  if (ids.length === 0) return ids;
+  const played = state.players.reduce((sum, p) => sum + p.wins, state.ties);
+  const shift = played % ids.length;
+  return [...ids.slice(shift), ...ids.slice(0, shift)];
+}
+
+/**
+ * One device: the player the screen is shown to. During turns that is the
+ * selecting player (or the one up next); otherwise the first player.
+ */
+export function sharedScreenViewer(state: MatchState): PlayerId {
+  if (state.phase === 'selecting' && state.turn !== null) return state.turn;
+  if (state.phase === 'handoff') return state.next;
+  return state.players[0]?.id ?? '';
+}
+
+/** Sequential: hand over to the next player who hasn't picked yet, or reveal once everyone has. */
+function finishTurn(state: SelectingState, now: number): MatchState {
+  const next = turnOrder(state).find((id) => !isDone(state.picks[id]));
+  if (next === undefined) return startRevealing(state, now);
+  return { ...base(state), phase: 'handoff', round: state.round, picks: state.picks, next };
+}
+
 /** The single best outcome wins; if several share the best, the round is a tie. */
 function decideWinner(players: readonly MatchPlayer[], outcomes: Record<PlayerId, RoundOutcome>): PlayerId | null {
   let leaders: PlayerId[] = [];
@@ -117,7 +175,7 @@ function decideWinner(players: readonly MatchPlayer[], outcomes: Record<PlayerId
   return leaders.length === 1 ? (leaders[0] ?? null) : null;
 }
 
-function startRevealing(state: Extract<MatchState, { phase: 'selecting' }>, now: number): MatchState {
+function startRevealing(state: SelectingState, now: number): MatchState {
   const selections: Record<PlayerId, FinalSelection> = {};
   for (const { id } of state.players) {
     const picks = state.picks[id];
@@ -146,8 +204,9 @@ export function matchReducer(state: MatchState, action: MatchAction): MatchState
 
     case 'TOGGLE_POSITION': {
       if (state.phase !== 'selecting') return state;
+      if (state.turn !== null && state.turn !== action.playerId) return state;
       const current = state.picks[action.playerId];
-      if (!current || current.locked) return state;
+      if (!current || isDone(current)) return state;
       const selected = togglePick(current.selected, action.position, state.round.grid.length);
       if (selected === current.selected) return state;
       return { ...state, picks: { ...state.picks, [action.playerId]: { ...current, selected } } };
@@ -155,29 +214,60 @@ export function matchReducer(state: MatchState, action: MatchAction): MatchState
 
     case 'SUBMIT_SELECTION': {
       if (state.phase !== 'selecting') return state;
+      if (state.turn !== null && state.turn !== action.playerId) return state;
       const current = state.picks[action.playerId];
-      if (!current || current.locked || current.selected.length !== GAME_CONFIG.picksRequired) return state;
-      const next = { ...state, picks: { ...state.picks, [action.playerId]: { ...current, locked: true } } };
+      if (!current || isDone(current) || current.selected.length !== GAME_CONFIG.picksRequired) return state;
+      const next: SelectingState = {
+        ...state,
+        picks: { ...state.picks, [action.playerId]: { ...current, locked: true } },
+      };
+      if (state.turnMode === 'sequential') return finishTurn(next, action.now);
       const everyoneLocked = state.players.every((p) => next.picks[p.id]?.locked);
       return everyoneLocked ? startRevealing(next, action.now) : next;
+    }
+
+    case 'BEGIN_TURN': {
+      if (state.phase !== 'handoff' || state.next !== action.playerId) return state;
+      return {
+        ...base(state),
+        phase: 'selecting',
+        round: state.round,
+        picks: state.picks,
+        turn: state.next,
+        endsAt: action.now + state.round.settings.selectSeconds * 1000,
+      };
     }
 
     case 'PHASE_TIMEOUT': {
       if (state.phase !== action.phase || state.round.id !== action.roundId) return state;
       switch (state.phase) {
         case 'memorizing': {
-          const picks: Record<PlayerId, PlayerPicks> = {};
-          for (const { id } of state.players) picks[id] = { selected: [], locked: false };
+          const picks = emptyPicks(state.players);
+          if (state.turnMode === 'sequential') {
+            const first = turnOrder(state)[0];
+            if (first === undefined) return state;
+            return { ...base(state), phase: 'handoff', round: state.round, picks, next: first };
+          }
           return {
             ...base(state),
             phase: 'selecting',
             round: state.round,
             picks,
+            turn: null,
             endsAt: action.now + state.round.settings.selectSeconds * 1000,
           };
         }
-        case 'selecting':
-          return startRevealing(state, action.now);
+        case 'selecting': {
+          // A timer from a different turn is stale.
+          if ((action.turn ?? null) !== state.turn) return state;
+          if (state.turn === null) return startRevealing(state, action.now);
+          const current = state.picks[state.turn];
+          if (!current) return state;
+          return finishTurn(
+            { ...state, picks: { ...state.picks, [state.turn]: { ...current, timedOut: true } } },
+            action.now,
+          );
+        }
         case 'revealing': {
           const outcomes: Record<PlayerId, RoundOutcome> = {};
           for (const { id } of state.players) {
@@ -204,6 +294,8 @@ export function matchReducer(state: MatchState, action: MatchAction): MatchState
 
     case 'NEXT_ROUND': {
       if (state.phase !== 'results' || !hasPlayer(state, action.playerId)) return state;
+      // One device: a single press readies everyone.
+      if (state.turnMode === 'sequential') return { ...state, ready: state.players.map((p) => p.id) };
       if (state.ready.includes(action.playerId)) return state;
       return { ...state, ready: [...state.ready, action.playerId] };
     }
@@ -212,7 +304,7 @@ export function matchReducer(state: MatchState, action: MatchAction): MatchState
 
 // ───────────── Per-player view ─────────────
 
-export type OpponentStatus = 'memorizing' | 'selecting' | 'locked' | 'revealed' | 'waiting';
+export type OpponentStatus = 'memorizing' | 'selecting' | 'locked' | 'up-next' | 'revealed' | 'waiting';
 
 export interface OpponentView {
   readonly id: PlayerId;
@@ -236,6 +328,9 @@ export interface MatchView {
   readonly ties: number;
   readonly settings: DifficultySettings;
   readonly phase: MatchPhase;
+  readonly turnMode: TurnMode;
+  /** Sequential: whose turn it is (selecting) or who is up next (handoff). Otherwise null. */
+  readonly turn: PlayerId | null;
   readonly roundId: number | null;
   readonly endsAt: number | null;
   /** Grid cards; face-down cards are null. Empty before the first deal. */
@@ -250,7 +345,16 @@ export interface MatchView {
 
 export function viewFor(state: MatchState, me: PlayerId): MatchView {
   const settings = DIFFICULTIES[state.difficulty];
-  const common = { me, players: state.players, ties: state.ties, settings, phase: state.phase };
+  const turn = state.phase === 'selecting' ? state.turn : state.phase === 'handoff' ? state.next : null;
+  const common = {
+    me,
+    players: state.players,
+    ties: state.ties,
+    settings,
+    phase: state.phase,
+    turnMode: state.turnMode,
+    turn,
+  };
 
   if (state.phase === 'waiting') {
     return {
@@ -268,24 +372,27 @@ export function viewFor(state: MatchState, me: PlayerId): MatchView {
     };
   }
 
-  const faceUp = state.phase !== 'selecting';
-  const grid = faceUp ? state.round.grid : state.round.grid.map(() => null);
+  const hidden = state.phase === 'selecting' || state.phase === 'handoff';
+  const grid = hidden ? state.round.grid.map(() => null) : state.round.grid;
   const community = state.phase === 'memorizing' ? null : state.round.community;
 
   const finalFor = (id: PlayerId) =>
     state.phase === 'revealing' || state.phase === 'results' ? (state.selections[id] ?? null) : null;
 
+  const liveStatus = (id: PlayerId, picks: Readonly<Record<PlayerId, PlayerPicks>>): OpponentStatus =>
+    isDone(picks[id]) ? 'locked' : turn !== null && turn !== id ? 'up-next' : 'selecting';
+
   const opponents: OpponentView[] = state.players
     .filter((p) => p.id !== me)
     .map((p) => {
       if (state.phase === 'memorizing') return { id: p.id, name: p.name, status: 'memorizing', picks: null };
-      if (state.phase === 'selecting') {
-        return { id: p.id, name: p.name, status: state.picks[p.id]?.locked ? 'locked' : 'selecting', picks: null };
+      if (state.phase === 'selecting' || state.phase === 'handoff') {
+        return { id: p.id, name: p.name, status: liveStatus(p.id, state.picks), picks: null };
       }
       return { id: p.id, name: p.name, status: 'revealed', picks: finalFor(p.id)?.positions ?? [] };
     });
 
-  const mine = state.phase === 'selecting' ? state.picks[me] : undefined;
+  const mine = state.phase === 'selecting' || state.phase === 'handoff' ? state.picks[me] : undefined;
 
   return {
     ...common,
@@ -294,7 +401,7 @@ export function viewFor(state: MatchState, me: PlayerId): MatchView {
     grid,
     community,
     myPicks: mine?.selected ?? finalFor(me)?.positions ?? [],
-    myLocked: mine?.locked ?? state.phase !== 'memorizing',
+    myLocked: mine ? isDone(mine) : state.phase !== 'memorizing',
     opponents,
     results:
       state.phase === 'results'

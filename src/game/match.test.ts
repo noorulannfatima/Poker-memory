@@ -4,7 +4,7 @@ import { createSeededRandom } from './deck';
 import { dealRound } from './deal';
 import { DIFFICULTIES, GAME_CONFIG } from './gameConfig';
 import type { Round } from './gameTypes';
-import { createMatch, matchReducer, viewFor, type MatchAction, type MatchState } from './match';
+import { createMatch, matchReducer, sharedScreenViewer, turnOrder, viewFor, type MatchAction, type MatchState } from './match';
 
 const T0 = 5_000_000;
 const A = 'ana';
@@ -207,5 +207,138 @@ describe('viewFor', () => {
     expect(view.grid).toEqual([]);
     expect(view.roundId).toBeNull();
     expect(GAME_CONFIG.picksRequired).toBe(2);
+  });
+});
+
+describe('matchReducer — sequential (one device)', () => {
+  const SELECT_MS = DIFFICULTIES.medium.selectSeconds * 1000;
+
+  function newSequential(): MatchState {
+    return createMatch({
+      players: [
+        { id: A, name: 'Ana' },
+        { id: B, name: 'Ben' },
+      ],
+      difficulty: 'medium',
+      turnMode: 'sequential',
+    });
+  }
+
+  /** Start the round and let memorizing time out: lands on the first handoff. */
+  const toHandoff = (round: Round = fixed) => toSelecting(round, newSequential());
+  const begin = (playerId: string, now = T0 + 21_000): MatchAction => ({ type: 'BEGIN_TURN', playerId, now });
+  const turnTimeout = (turn: string | null, now: number): MatchAction => ({
+    type: 'PHASE_TIMEOUT',
+    phase: 'selecting',
+    roundId: fixed.id,
+    now,
+    turn,
+  });
+  const anaTurn = (): MatchAction[] => [begin(A), ...pick(A, 0, 1), submit(A)];
+  const benTurn = (): MatchAction[] => [begin(B), ...pick(B, 2, 3), submit(B)];
+
+  it('ends memorizing in a handoff to the first player, with no timer running', () => {
+    const state = toHandoff();
+    if (state.phase !== 'handoff') throw new Error(`expected handoff, got ${state.phase}`);
+    expect(state.next).toBe(A);
+    expect('endsAt' in state).toBe(false);
+  });
+
+  it('lets only the player whose turn it is pick, each with a full timer', () => {
+    const handoff = toHandoff();
+    expect(run(handoff, pick(A, 0))).toBe(handoff); // no picking during a handoff
+    expect(run(handoff, [begin(B)])).toBe(handoff); // not Ben's turn
+
+    const aTurn = run(handoff, [begin(A, T0 + 30_000)]);
+    if (aTurn.phase !== 'selecting') throw new Error();
+    expect(aTurn.turn).toBe(A);
+    expect(aTurn.endsAt).toBe(T0 + 30_000 + SELECT_MS);
+    expect(run(aTurn, pick(B, 3))).toBe(aTurn);
+
+    const bHandoff = run(aTurn, [...pick(A, 0, 1), submit(A, T0 + 35_000)]);
+    if (bHandoff.phase !== 'handoff') throw new Error();
+    expect(bHandoff.next).toBe(B);
+
+    const bTurn = run(bHandoff, [begin(B, T0 + 60_000)]);
+    if (bTurn.phase !== 'selecting') throw new Error();
+    expect(bTurn.turn).toBe(B);
+    expect(bTurn.endsAt).toBe(T0 + 60_000 + SELECT_MS);
+    expect(run(bTurn, pick(A, 5))).toBe(bTurn); // Ana has had her turn
+
+    const revealing = run(bTurn, [...pick(B, 2, 3), submit(B, T0 + 65_000)]);
+    expect(revealing.phase).toBe('revealing');
+    const results = run(revealing, [reveal()]);
+    if (results.phase !== 'results') throw new Error();
+    expect(results.selections[A]).toEqual({ positions: [0, 1], reason: 'submitted' });
+    expect(results.winner).toBe(A); // quads beat a pair
+  });
+
+  it('a turn timeout locks in the partial picks and passes the device on', () => {
+    const aTurn = run(toHandoff(), [begin(A), ...pick(A, 4)]);
+    const bHandoff = run(aTurn, [turnTimeout(A, T0 + 60_000)]);
+    if (bHandoff.phase !== 'handoff') throw new Error();
+    expect(bHandoff.next).toBe(B);
+
+    const results = run(bHandoff, [...benTurn(), reveal()]);
+    if (results.phase !== 'results') throw new Error();
+    expect(results.selections[A]).toEqual({ positions: [4], reason: 'timeout' });
+    expect(results.winner).toBe(B);
+  });
+
+  it('ignores a selecting timeout that belongs to another turn', () => {
+    const bTurn = run(toHandoff(), [...anaTurn(), begin(B)]);
+    expect(run(bTurn, [turnTimeout(A, T0 + 99_000)])).toBe(bTurn);
+    expect(run(bTurn, [turnTimeout(null, T0 + 99_000)])).toBe(bTurn);
+  });
+
+  it('one Next round press readies both players, and the first selector alternates', () => {
+    const results = run(toHandoff(), [...anaTurn(), ...benTurn(), reveal()]);
+    expect(turnOrder(results)).toEqual([B, A]);
+
+    const next = { ...fixed, id: 2 };
+    const handoff = run(results, [
+      { type: 'NEXT_ROUND', playerId: A },
+      { type: 'START_ROUND', round: next, now: T0 + 100_000 },
+      { type: 'PHASE_TIMEOUT', phase: 'memorizing', roundId: next.id, now: T0 + 120_000 },
+    ]);
+    if (handoff.phase !== 'handoff') throw new Error(`expected handoff, got ${handoff.phase}`);
+    expect(handoff.next).toBe(B);
+  });
+
+  it('simultaneous matches are unaffected: no handoff and no turn', () => {
+    const selecting = toSelecting();
+    if (selecting.phase !== 'selecting') throw new Error();
+    expect(selecting.turn).toBeNull();
+    expect(viewFor(selecting, A).turn).toBeNull();
+    expect(viewFor(selecting, A).turnMode).toBe('simultaneous');
+  });
+
+  describe('views', () => {
+    it('hides the grid and the previous player’s picks during the handoff', () => {
+      const view = viewFor(run(toHandoff(), anaTurn()), B);
+      expect(view.phase).toBe('handoff');
+      expect(view.turn).toBe(B);
+      expect(view.grid.every((card) => card === null)).toBe(true);
+      expect(view.myPicks).toEqual([]);
+      expect(view.opponents[0]).toMatchObject({ id: A, status: 'locked', picks: null });
+    });
+
+    it('tells the selecting player who picks next', () => {
+      const view = viewFor(run(toHandoff(), [begin(A)]), A);
+      expect(view.turnMode).toBe('sequential');
+      expect(view.turn).toBe(A);
+      expect(view.myLocked).toBe(false);
+      expect(view.opponents[0]?.status).toBe('up-next');
+    });
+
+    it('sharedScreenViewer follows whoever holds the device', () => {
+      expect(sharedScreenViewer(newSequential())).toBe(A);
+      const handoff = toHandoff();
+      expect(sharedScreenViewer(handoff)).toBe(A);
+      const bHandoff = run(handoff, anaTurn());
+      expect(sharedScreenViewer(bHandoff)).toBe(B);
+      expect(sharedScreenViewer(run(bHandoff, [begin(B)]))).toBe(B);
+      expect(sharedScreenViewer(run(bHandoff, [...benTurn()]))).toBe(A); // revealing: first player
+    });
   });
 });
