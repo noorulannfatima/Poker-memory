@@ -13,16 +13,22 @@ interface MatchResultPanelProps {
   results: MatchResultsView;
   onNextRound: () => void;
   onLeave: () => void;
+  /** One device: name both players instead of saying "you". */
+  shared?: boolean;
 }
 
-export function MatchResultPanel({ me, players, grid, results, onNextRound, onLeave }: MatchResultPanelProps) {
+export function MatchResultPanel({ me, players, grid, results, onNextRound, onLeave, shared = false }: MatchResultPanelProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
 
   const winner = players.find((p) => p.id === results.winner);
-  const banner = !winner ? "It's a tie" : winner.id === me ? 'You win the round' : `${winner.name} wins the round`;
+  const banner = !winner
+    ? "It's a tie"
+    : winner.id === me && !shared
+      ? 'You win the round'
+      : `${winner.name} wins the round`;
   const bannerColor = !winner ? 'text-ink' : winner.id === me ? 'text-gold-bright' : 'text-rival';
   // Show this player's hand first.
   const ordered = [...players].sort((a, b) => Number(b.id === me) - Number(a.id === me));
@@ -47,7 +53,8 @@ export function MatchResultPanel({ me, players, grid, results, onNextRound, onLe
           const selection = results.selections[player.id];
           if (!outcome || !selection) return null;
           const isMe = player.id === me;
-          const name = isMe ? 'Your hand' : `${player.name}’s hand`;
+          const youLabel = isMe && !shared;
+          const name = youLabel ? 'Your hand' : `${player.name}’s hand`;
           const picked = new Set(selection.positions.map((p) => grid[p]).filter((c): c is Card => c !== undefined));
           return (
             <div
@@ -67,7 +74,7 @@ export function MatchResultPanel({ me, players, grid, results, onNextRound, onLe
                   <HandCards
                     cards={outcome.hand.cards}
                     picked={picked}
-                    label={`${isMe ? 'Your' : `${player.name}’s`} five-card hand`}
+                    label={`${youLabel ? 'Your' : `${player.name}’s`} five-card hand`}
                     accent={isMe ? 'gold' : 'rival'}
                   />
                 </>

@@ -1,9 +1,10 @@
-import type { MatchActions } from '../app/useComputerMatch';
+import type { MatchActions } from '../app/matchActions';
 import { useRemaining } from '../app/usePhaseTimer';
 import { CardGrid } from '../components/CardGrid';
 import { CommunityCards } from '../components/CommunityCards';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { GameHeader } from '../components/GameHeader';
+import { HandoffScreen } from '../components/HandoffScreen';
 import { MatchResultPanel } from '../components/MatchResultPanel';
 import { PhaseInstructions } from '../components/PhaseInstructions';
 import { Scoreboard } from '../components/Scoreboard';
@@ -62,6 +63,19 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
   const { settings } = view;
   const remaining = useRemaining(view.endsAt);
   const opponent = view.opponents[0] ?? null;
+  // One device: two people share this screen, so name them instead of saying "you",
+  // and keep the scoreboard in a fixed order instead of swapping sides each turn.
+  const shared = view.turnMode === 'sequential';
+  const scoreboard = (
+    <Scoreboard
+      me={shared ? (view.players[0]?.id ?? view.me) : view.me}
+      players={view.players}
+      ties={view.ties}
+      active={shared && view.phase === 'selecting' ? view.turn : null}
+    />
+  );
+  const viewerName = view.players.find((p) => p.id === view.me)?.name ?? '';
+  const title = shared ? view.players.map((p) => p.name).join(' vs ') : `vs ${opponent?.name ?? 'opponent'}`;
 
   if (view.phase === 'waiting' || view.roundId === null) {
     return (
@@ -71,7 +85,18 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
     );
   }
 
-  if (view.phase === 'handoff') return null;
+  if (view.phase === 'handoff') {
+    return (
+      <HandoffScreen
+        nextName={viewerName}
+        otherName={opponent?.name ?? ''}
+        firstTurn={opponent?.status === 'up-next'}
+        scoreboard={scoreboard}
+        onReady={actions.beginTurn}
+        onLeave={onLeave}
+      />
+    );
+  }
 
   const timer =
     view.phase === 'memorizing' ? (
@@ -95,12 +120,12 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
         selectable ? 'pb-24 lg:pb-8' : 'pb-8'
       }`}
     >
-      <GameHeader phase={view.phase} difficulty={`${settings.label} · vs ${opponent?.name ?? 'opponent'}`} timer={timer} onExit={onLeave} />
-      <h1 className="sr-only">Memory Poker vs {opponent?.name}</h1>
+      <GameHeader phase={view.phase} difficulty={`${settings.label} · ${title}`} timer={timer} onExit={onLeave} />
+      <h1 className="sr-only">Memory Poker {title}</h1>
       <p className="sr-only" role="status" aria-live="polite">
         {announcement(view)}
       </p>
-      <Scoreboard me={view.me} players={view.players} ties={view.ties} />
+      {scoreboard}
 
       <main className="game-layout flex-1">
         <div className="area-board">
@@ -114,6 +139,7 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
             columns={settings.gridColumns}
             rows={settings.gridRows}
             selected={view.myPicks}
+            selectedLabel={shared && view.phase !== 'selecting' ? `${viewerName}'s pick` : undefined}
             selectable={selectable}
             revealing={view.phase === 'revealing'}
             opponent={opponent?.picks ? { name: opponent.name, picks: opponent.picks } : null}
@@ -133,6 +159,7 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
               results={results}
               onNextRound={actions.nextRound}
               onLeave={onLeave}
+              shared={shared}
             />
           ) : view.phase !== 'results' ? (
             <PhaseInstructions
@@ -144,7 +171,7 @@ export function MatchScreen({ view, actions, onLeave }: MatchScreenProps) {
               locked={view.phase === 'selecting' && view.myLocked}
               onSubmit={actions.submit}
             >
-              {opponent && <OpponentStatus opponent={opponent} />}
+              {opponent && (!shared || view.phase === 'selecting') && <OpponentStatus opponent={opponent} />}
             </PhaseInstructions>
           ) : null}
         </div>

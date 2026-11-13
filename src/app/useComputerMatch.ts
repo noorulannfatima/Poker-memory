@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import type { MatchActions } from './matchActions';
 import { chooseComputerPicks } from '../game/computerPlayer';
 import { dealRound } from '../game/deal';
 import type { Difficulty } from '../game/gameConfig';
@@ -11,12 +12,6 @@ export const COMPUTER_ID = 'computer';
 
 /** When the human locks in first, the computer finishes up quickly. */
 const HURRY_MS = 700;
-
-export interface MatchActions {
-  toggle: (position: number) => void;
-  submit: () => void;
-  nextRound: () => void;
-}
 
 /**
  * Runs a You-vs-Computer match in the browser on the shared match engine.
@@ -81,7 +76,10 @@ export function useComputerMatch(difficulty: Difficulty, random: RandomFn): { vi
     dispatch({ type: 'START_ROUND', round: dealRound(lastRoundId + 1, random, difficulty), now: Date.now() });
   }, [lastRoundId, random, difficulty]);
 
+  // Vs computer is simultaneous: there are no handoffs.
+  const beginTurn = useCallback(() => {}, []);
+
   const view = useMemo(() => viewFor(state, HUMAN_ID), [state]);
-  const actions = useMemo(() => ({ toggle, submit, nextRound }), [toggle, submit, nextRound]);
+  const actions = useMemo(() => ({ toggle, submit, nextRound, beginTurn }), [toggle, submit, nextRound, beginTurn]);
   return { view, actions };
 }

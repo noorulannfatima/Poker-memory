@@ -18,6 +18,8 @@ interface CardGridProps {
   rows: number;
   /** This player's picks, shown with numbered chips. */
   selected: readonly number[];
+  /** How a picked card is announced, e.g. "Ana's pick". */
+  selectedLabel?: string;
   /** Whether taps select cards right now. */
   selectable: boolean;
   /** Stagger the flip while the grid is being revealed. */
@@ -37,6 +39,7 @@ export function CardGrid({
   columns,
   rows,
   selected,
+  selectedLabel = 'your pick',
   selectable,
   revealing = false,
   opponent = null,
@@ -71,7 +74,7 @@ export function CardGrid({
         const col = (position % columns) + 1;
         const where = `Row ${row}, column ${col}`;
         const label = card
-          ? `${where}: ${cardLongName(card)}${isSelected ? ', your pick' : ''}${
+          ? `${where}: ${cardLongName(card)}${isSelected ? `, ${selectedLabel}` : ''}${
               byOpponent && opponent ? `, ${opponent.name}'s pick` : ''
             }`
           : `${where}: face-down card`;
