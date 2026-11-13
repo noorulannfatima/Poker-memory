@@ -28,7 +28,7 @@ Run `npm test`, `npm run lint` and `npm run typecheck` before calling work done.
 - Tunable settings belong in `src/game/gameConfig.ts`.
 - `src/net` is shared with the Node server: no React, DOM or Node APIs.
 
-## Multiplayer (in progress)
+## Multiplayer
 
 Full design: [docs/superpowers/specs/2026-11-13-multiplayer-design.md](docs/superpowers/specs/2026-11-13-multiplayer-design.md)
 

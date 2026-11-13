@@ -73,7 +73,8 @@ One player chooses **Online → Create room** and shares the 4-letter code. The 
 their own devices, and the stronger hand wins the round. The game server deals, keeps time and
 scores, and it never sends a face-down card to a device. If a connection drops, the game keeps
 running and the player has 30 s to come back: reconnecting is automatic, and a reload works too.
-After that the room closes. An unused room closes after 10 minutes.
+After that the room closes. An unused room closes after 10 minutes. The server caps rooms (1000 in
+total, 5 per connection); for serious public hosting, add per-IP limits at the proxy.
 
 ```bash
 npm run server          # the game server on ws://localhost:8787/ws (restarts on changes)
@@ -91,7 +92,7 @@ server/
 src/
   net/
     protocol.ts      the message format shared with the server
-  game/            framework-free rules (reusable on a server later)
+  game/            framework-free rules, shared with the online server
     gameTypes.ts     Card, Round, FinalSelection
     gameConfig.ts    all tunable settings
     deck.ts          create / Fisher–Yates shuffle / seeded RNG / crypto RNG

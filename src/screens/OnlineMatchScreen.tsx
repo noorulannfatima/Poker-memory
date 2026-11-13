@@ -42,9 +42,18 @@ export function OnlineMatchScreen({ intent, url, createSocket, onExit }: OnlineM
   if (state.phase === 'failed') return null;
   if (!room) {
     return (
-      <p className="grid min-h-dvh place-items-center text-muted" role="status">
-        Connecting…
-      </p>
+      <main className="grid min-h-dvh place-content-center justify-items-center gap-4 text-center">
+        <p className="text-muted" role="status">
+          Connecting…
+        </p>
+        <button
+          type="button"
+          onClick={exit}
+          className="text-sm text-muted underline-offset-4 transition hover:text-ink hover:underline"
+        >
+          Cancel
+        </button>
+      </main>
     );
   }
   if (room.closed) return <RoomClosed room={room} view={view} me={state.session?.playerId ?? null} onBack={exit} />;

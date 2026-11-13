@@ -284,6 +284,28 @@ describe('RoomServer — leaving and reconnecting', () => {
     expect(benAgain.last('error').code).toBe('room-closed');
   });
 
+  it('a cut-off connection cannot reset its limits and keep creating rooms', () => {
+    const conn = new FakeConn();
+    for (let i = 0; i < NET_CONFIG.maxMessagesPerSecond + 1; i++) server.handle(conn, '{}');
+    expect(conn.closed).toBe(true);
+    const before = conn.sent.length;
+    for (let i = 0; i < 30; i++) {
+      advance(1500);
+      say(conn, { type: 'create', name: 'Ana', difficulty: 'easy' });
+    }
+    expect(conn.sent.length).toBe(before);
+  });
+
+  it('a resume from a new connection closes the old one, which then cannot mark the seat reconnecting', () => {
+    const { ana, ben, code } = startMatch();
+    const token = ben.last('joined').token;
+    const benAgain = new FakeConn();
+    say(benAgain, { type: 'resume', roomCode: code, token });
+    expect(ben.closed).toBe(true);
+    server.disconnect(ben);
+    expect(ana.last('state').room.players[1]?.presence).toBe('connected');
+  });
+
   it('rejects a resume with a wrong token', () => {
     const { code } = startMatch();
     const imposter = new FakeConn();

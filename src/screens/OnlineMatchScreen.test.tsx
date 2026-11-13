@@ -62,6 +62,17 @@ describe('Online play', () => {
     expect(screen.getByText(/Your opponent picks at the same time on their own device/)).toBeInTheDocument();
   });
 
+  it('Cancel while connecting goes back to the lobby and closes the socket', () => {
+    const fake = renderApp();
+    chooseOnline();
+    fireEvent.click(screen.getByRole('button', { name: 'Create medium room' }));
+    const socket = fake.latest();
+    expect(screen.getByText('Connecting…')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('radio', { name: /^Online/ })).toBeInTheDocument();
+    expect(socket.closed).toBe(true);
+  });
+
   it('shows the room code until an opponent joins, then plays a round', () => {
     const fake = renderApp();
     chooseOnline();

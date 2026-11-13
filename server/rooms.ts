@@ -68,6 +68,8 @@ export class RoomServer {
   private readonly seated = new Map<Connection, { room: Room; seat: Seat }>();
   private readonly rates = new Map<Connection, { start: number; count: number }>();
   private readonly creates = new Map<Connection, number>();
+  /** Connections already cut off: ws may still deliver buffered frames, which must not reset limits. */
+  private readonly cutOff = new WeakSet<Connection>();
   private readonly random: RandomFn;
   private readonly log: (message: string) => void;
 
@@ -78,8 +80,10 @@ export class RoomServer {
 
   /** Handles one raw text message from a connection. */
   handle(conn: Connection, raw: string): void {
+    if (this.cutOff.has(conn)) return;
     if (encoder.encode(raw).length > NET_CONFIG.maxMessageBytes || this.overRate(conn)) {
       this.log('Cutting off a connection: message too large or too frequent.');
+      this.cutOff.add(conn);
       this.disconnect(conn);
       conn.close();
       return;

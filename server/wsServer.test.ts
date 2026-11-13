@@ -65,4 +65,19 @@ describe('startServer', () => {
     client.socket.send('x'.repeat(NET_CONFIG.maxMessageBytes + 1));
     await expect(client.closed).resolves.toEqual(expect.any(Number));
   });
+
+  it('drops a client that stops answering pings, and keeps one that answers', async () => {
+    server = await startServer({ port: 0, heartbeatMs: 50 });
+    const dead = new WebSocket(`ws://localhost:${server.port}/ws`, { autoPong: false });
+    const deadClosed = new Promise<boolean>((resolve) => dead.once('close', () => resolve(true)));
+    const live = connect(server.port);
+    await live.opened;
+    const outcome = await Promise.race([
+      deadClosed,
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 500)),
+    ]);
+    expect(outcome).toBe(true);
+    expect(live.socket.readyState).toBe(WebSocket.OPEN);
+    live.socket.close();
+  });
 });

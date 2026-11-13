@@ -10,13 +10,14 @@ interface WaitingRoomProps {
 
 /** Online: the room exists, and its code is shown until an opponent joins. */
 export function WaitingRoom({ code, levelLabel, reconnecting, onLeave }: WaitingRoomProps) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const canCopy = typeof navigator !== 'undefined' && Boolean(navigator.clipboard);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code);
-      setCopied(true);
+      setCopied('copied');
     } catch {
-      setCopied(false);
+      setCopied('failed');
     }
   };
 
@@ -33,13 +34,20 @@ export function WaitingRoom({ code, levelLabel, reconnecting, onLeave }: Waiting
         >
           {code}
         </p>
-        <button
-          type="button"
-          onClick={() => void copy()}
-          className="mt-4 rounded-xl border border-gold/60 px-4 py-2 text-sm font-semibold text-gold transition hover:bg-gold/10"
-        >
-          {copied ? 'Copied ✓' : 'Copy code'}
-        </button>
+        {canCopy && (
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => void copy()}
+              className="rounded-xl border border-gold/60 px-4 py-2 text-sm font-semibold text-gold transition hover:bg-gold/10"
+            >
+              Copy code
+            </button>
+            <span role="status" className="text-sm text-ink/85">
+              {copied === 'copied' ? 'Copied ✓' : copied === 'failed' ? 'Couldn’t copy' : ''}
+            </span>
+          </div>
+        )}
         <p className="mt-5 text-ink/85" role="status">
           {reconnecting ? 'Connection lost. Reconnecting…' : 'Waiting for an opponent to join…'}
         </p>

@@ -158,58 +158,58 @@ export function LobbyScreen({
             </div>
           </fieldset>
         )}
-      {mode === 'online' && (
-        <fieldset className="mx-auto mt-6 max-w-xl text-left">
-          <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
-            Online
-          </legend>
-          <label className="block text-xs font-medium text-muted">
-            Your name
-            <input
-              type="text"
-              value={onlineName}
-              maxLength={NET_CONFIG.maxNameLength}
-              placeholder="Player"
-              autoComplete="off"
-              onChange={(event) => onOnlineNameChange(event.target.value)}
-              className="mt-1 block w-full rounded-xl border border-line bg-charcoal/70 px-3 py-2.5 text-base text-ink placeholder:text-subtle focus:border-gold focus:outline-none"
-            />
-          </label>
-          <form
-            className="mt-3 flex items-end gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (isRoomCode(roomCode)) onJoin(roomCode);
-            }}
-          >
-            <label className="block flex-1 text-xs font-medium text-muted">
-              Room code
+        {mode === 'online' && (
+          <fieldset className="mx-auto mt-6 max-w-xl text-left">
+            <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
+              Online
+            </legend>
+            <label className="block text-xs font-medium text-muted">
+              Your name
               <input
                 type="text"
-                value={roomCode}
-                autoCapitalize="characters"
+                value={onlineName}
+                maxLength={NET_CONFIG.maxNameLength}
+                placeholder="Player"
                 autoComplete="off"
-                spellCheck={false}
-                placeholder="ABCD"
-                onChange={(event) => setRoomCode(normalizeRoomCode(event.target.value))}
-                className="mt-1 block w-full rounded-xl border border-line bg-charcoal/70 px-3 py-2.5 font-display text-lg uppercase tracking-[0.3em] text-ink placeholder:text-subtle focus:border-gold focus:outline-none"
+                onChange={(event) => onOnlineNameChange(event.target.value)}
+                className="mt-1 block w-full rounded-xl border border-line bg-charcoal/70 px-3 py-2.5 text-base text-ink placeholder:text-subtle focus:border-gold focus:outline-none"
               />
             </label>
-            <button
-              type="submit"
-              disabled={!isRoomCode(roomCode)}
-              className="rounded-xl border border-gold/60 px-4 py-2.5 font-semibold text-gold transition hover:bg-gold/10 disabled:cursor-not-allowed disabled:border-line disabled:text-subtle"
+            <form
+              className="mt-3 flex items-end gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (isRoomCode(roomCode)) onJoin(roomCode);
+              }}
             >
-              Join room
-            </button>
-          </form>
-          {onlineError && (
-            <p role="alert" className="mt-3 text-sm text-alert">
-              {onlineError}
-            </p>
-          )}
-        </fieldset>
-      )}
+              <label className="block flex-1 text-xs font-medium text-muted">
+                Room code
+                <input
+                  type="text"
+                  value={roomCode}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="ABCD"
+                  onChange={(event) => setRoomCode(normalizeRoomCode(event.target.value))}
+                  className="mt-1 block w-full rounded-xl border border-line bg-charcoal/70 px-3 py-2.5 font-display text-lg uppercase tracking-[0.3em] text-ink placeholder:text-subtle focus:border-gold focus:outline-none"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={!isRoomCode(roomCode)}
+                className="rounded-xl border border-gold/60 px-4 py-2.5 font-semibold text-gold transition hover:bg-gold/10 disabled:cursor-not-allowed disabled:border-line disabled:text-subtle"
+              >
+                Join room
+              </button>
+            </form>
+            {onlineError && (
+              <p role="alert" className="mt-3 text-sm text-alert">
+                {onlineError}
+              </p>
+            )}
+          </fieldset>
+        )}
 
         <fieldset className="mx-auto mt-6 max-w-xl">
           <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
