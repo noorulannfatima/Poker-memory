@@ -79,17 +79,18 @@ export function isDifficulty(value: unknown): value is Difficulty {
 }
 
 /** Who you play against. Two players on one device and online play are planned. */
-export type GameMode = 'solo' | 'computer';
+export type GameMode = 'solo' | 'computer' | 'local';
 
 export const GAME_MODES: ReadonlyArray<{ readonly id: GameMode; readonly label: string; readonly summary: string }> = [
   { id: 'solo', label: 'Solo', summary: 'Find the best hand you can.' },
   { id: 'computer', label: 'Vs computer', summary: 'Same grid, secret picks. Best hand wins.' },
+  { id: 'local', label: 'Two players', summary: 'One device. Take turns and pass it over.' },
 ];
 
 export const DEFAULT_MODE: GameMode = 'solo';
 
 export function isGameMode(value: unknown): value is GameMode {
-  return value === 'solo' || value === 'computer';
+  return GAME_MODES.some((mode) => mode.id === value);
 }
 
 /** How the lobby describes the computer's memory at a level. */

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { DEFAULT_NAMES, MAX_NAME_LENGTH } from '../app/playerNames';
 import {
   DIFFICULTIES,
   DIFFICULTY_ORDER,
@@ -17,11 +18,13 @@ interface LobbyScreenProps {
   onDifficultyChange: (difficulty: Difficulty) => void;
   mode: GameMode;
   onModeChange: (mode: GameMode) => void;
+  names: readonly [string, string];
+  onNamesChange: (names: [string, string]) => void;
   onStart: () => void;
 }
 
 function stepsFor(settings: DifficultySettings, mode: GameMode) {
-  const vsComputer = mode === 'computer';
+  const versus = mode !== 'solo';
   const { communityCount, picksRequired } = GAME_CONFIG;
   return [
     {
@@ -37,14 +40,17 @@ function stepsFor(settings: DifficultySettings, mode: GameMode) {
     {
       title: 'Select',
       time: `${settings.selectSeconds}s`,
-      body: vsComputer
-        ? `Pick ${picksRequired} face-down grid positions from memory. The computer secretly picks ${picksRequired} at the same time, and you may both pick the same card.`
-        : `Pick ${picksRequired} face-down grid positions from memory. You can change your mind until you lock in.`,
+      body:
+        mode === 'computer'
+          ? `Pick ${picksRequired} face-down grid positions from memory. The computer secretly picks ${picksRequired} at the same time, and you may both pick the same card.`
+          : mode === 'local'
+            ? `Players take turns picking ${picksRequired} face-down grid positions, each with their own ${settings.selectSeconds}s. Pass the device between turns, and look away while the other player picks.`
+            : `Pick ${picksRequired} face-down grid positions from memory. You can change your mind until you lock in.`,
     },
     {
       title: 'Reveal',
       time: null,
-      body: vsComputer
+      body: versus
         ? `Both sets of picks are revealed. Each player's ${picksRequired} picks plus the ${communityCount} community cards make a five-card hand, and the higher hand wins the round.`
         : `The grid flips back. Your ${picksRequired} picks plus the ${communityCount} community cards make your five-card hand.`,
     },
@@ -64,7 +70,15 @@ const RANKING: Array<[HandCategory, string]> = [
   ['high-card', 'None of the above'],
 ];
 
-export function LobbyScreen({ difficulty, onDifficultyChange, mode, onModeChange, onStart }: LobbyScreenProps) {
+export function LobbyScreen({
+  difficulty,
+  onDifficultyChange,
+  mode,
+  onModeChange,
+  names,
+  onNamesChange,
+  onStart,
+}: LobbyScreenProps) {
   const settings = DIFFICULTIES[difficulty];
   const steps = stepsFor(settings, mode);
 
@@ -84,7 +98,7 @@ export function LobbyScreen({ difficulty, onDifficultyChange, mode, onModeChange
           <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
             Play
           </legend>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {GAME_MODES.map((option) => (
               <label
                 key={option.id}
@@ -104,6 +118,33 @@ export function LobbyScreen({ difficulty, onDifficultyChange, mode, onModeChange
             ))}
           </div>
         </fieldset>
+        {mode === 'local' && (
+          <fieldset className="mx-auto mt-6 max-w-xl">
+            <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
+              Players
+            </legend>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              {([0, 1] as const).map((i) => (
+                <label key={i} className="text-left text-xs font-medium text-muted">
+                  Player {i + 1}
+                  <input
+                    type="text"
+                    value={names[i]}
+                    maxLength={MAX_NAME_LENGTH}
+                    placeholder={DEFAULT_NAMES[i]}
+                    autoComplete="off"
+                    onChange={(event) => {
+                      const next: [string, string] = [names[0], names[1]];
+                      next[i] = event.target.value;
+                      onNamesChange(next);
+                    }}
+                    className="mt-1 block w-full rounded-xl border border-line bg-charcoal/70 px-3 py-2.5 text-base text-ink placeholder:text-subtle focus:border-gold focus:outline-none"
+                  />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         <fieldset className="mx-auto mt-6 max-w-xl">
           <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
@@ -148,7 +189,7 @@ export function LobbyScreen({ difficulty, onDifficultyChange, mode, onModeChange
           autoFocus
           className="mt-5 rounded-2xl bg-gold px-10 py-4 text-lg font-semibold text-night shadow-[0_12px_32px_-12px_rgb(216_180_106/0.8)] transition hover:bg-gold-bright active:translate-y-px"
         >
-          Start {settings.label.toLowerCase()} game{mode === 'computer' ? ' vs computer' : ''}
+          Start {settings.label.toLowerCase()} game{mode === 'computer' ? ' vs computer' : mode === 'local' ? ' for two' : ''}
         </button>
       </div>
 

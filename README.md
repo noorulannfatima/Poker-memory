@@ -57,6 +57,15 @@ The results also show the **best possible pick** on the grid, found by checking 
 
 Level settings (grid size, durations) and other tunables are in [`src/game/gameConfig.ts`](src/game/gameConfig.ts).
 
+## Two players, one device
+
+Both players memorize the same grid together. Then they pick **in turn**, each with a full
+selection timer. A handoff screen comes before every turn ("Ana picks first", "Pass to Ben"),
+hides the board and runs no timer, so the other player can look away. The first player to pick
+alternates every round. Both hands are revealed together, and the stronger hand wins the round
+(`compareOutcomes`: a complete hand beats an incomplete one, and equal hands tie). A running
+tally counts wins and ties.
+
 ## Architecture
 
 ```

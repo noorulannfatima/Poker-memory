@@ -30,8 +30,8 @@ Run `npm test`, `npm run lint` and `npm run typecheck` before calling work done.
 
 Full design: [docs/superpowers/specs/2026-11-13-multiplayer-design.md](docs/superpowers/specs/2026-11-13-multiplayer-design.md)
 
-- **Modes:** Solo (unchanged), **Two players, one device** (pass-and-play) and **Online**
-  (room code).
+- **Modes:** Solo (unchanged), **Vs computer** (built), **Two players, one device**
+  (pass-and-play, built) and **Online** (room code).
 - **Exactly 2 players.** Rounds go on with a running tally (wins plus ties). Both players press
   Next round to continue.
 - **Shared engine:** a pure `matchReducer` in `src/game/match.ts` runs in the browser (one device)
@@ -45,9 +45,15 @@ Full design: [docs/superpowers/specs/2026-11-13-multiplayer-design.md](docs/supe
   window to resume with a `sessionStorage` token, after which the opponent sees "Opponent left".
 - **Client:** `useLocalMatch` and `useOnlineMatch` both return `{ view, actions }` for a shared
   `MatchScreen`. The shared components take narrow props, not the whole `GameState`.
+- **Vs computer (built):** `useComputerMatch` runs `matchReducer` in `simultaneous` mode with a
+  computer player. `src/game/computerPlayer.ts` picks the pair that looks best from an imperfect
+  recollection of the grid; the per-level `computerMemory` in `gameConfig.ts` sets how often it
+  remembers each card. It locks in partway through the select timer, or ~0.7 s after the human locks
+  in. `MatchScreen`, `MatchResultPanel` and `Scoreboard` are mode-agnostic and take a `MatchView`.
 - **Build order:**
-  1. Match engine
-  2. Narrower component props
-  3. Two players on one device
+  1. Match engine — done (`match.ts`, `picking.ts`, `viewFor`, tests; `simultaneous`, and
+     `sequential` with `handoff`)
+  2. Narrower component props — done (`CardGrid`, `PhaseInstructions` take explicit props)
+  3. Two players on one device — done (`useLocalMatch`, `LocalMatchScreen`, `HandoffScreen`)
   4. Server
   5. Online client

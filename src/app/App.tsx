@@ -11,9 +11,11 @@ import {
 } from '../game/gameConfig';
 import { gameReducer, initialGameState, type TimedPhase } from '../game/gameReducer';
 import type { RandomFn } from '../game/gameTypes';
+import { normalizeNames } from './playerNames';
 import { ComputerMatchScreen } from '../screens/ComputerMatchScreen';
 import { GameScreen } from '../screens/GameScreen';
 import { LobbyScreen } from '../screens/LobbyScreen';
+import { LocalMatchScreen } from '../screens/LocalMatchScreen';
 import { usePhaseTimer } from './usePhaseTimer';
 
 const DIFFICULTY_KEY = 'memory-poker:difficulty';
@@ -46,8 +48,9 @@ export function App({ random = cryptoRandom }: AppProps) {
   const [state, dispatch] = useReducer(gameReducer, initialGameState);
   const [difficulty, setDifficulty] = useState<Difficulty>(() => load(DIFFICULTY_KEY, isDifficulty, DEFAULT_DIFFICULTY));
   const [mode, setMode] = useState<GameMode>(() => load(MODE_KEY, isGameMode, DEFAULT_MODE));
-  /** Key of the running computer match (a new key starts a fresh match), or null. */
-  const [computerMatch, setComputerMatch] = useState<number | null>(null);
+  const [names, setNames] = useState<[string, string]>(['', '']);
+  /** The running match (vs computer or one device), or null in solo/lobby. */
+  const [match, setMatch] = useState<{ mode: Exclude<GameMode, 'solo'>; names: [string, string] } | null>(null);
   const nextRoundId = useRef(1);
 
   const deadline = 'endsAt' in state ? { phase: state.phase, endsAt: state.endsAt, roundId: state.round.id } : null;
@@ -74,18 +77,21 @@ export function App({ random = cryptoRandom }: AppProps) {
   }, [random, difficulty]);
 
   const start = useCallback(() => {
-    if (mode === 'computer') {
-      setComputerMatch((key) => (key ?? 0) + 1);
-      window.scrollTo?.({ top: 0 });
-    } else {
+    if (mode === 'solo') {
       startSoloRound();
+      return;
     }
-  }, [mode, startSoloRound]);
+    setMatch({ mode, names: normalizeNames(names) });
+    window.scrollTo?.({ top: 0 });
+  }, [mode, names, startSoloRound]);
 
-  const leaveMatch = useCallback(() => setComputerMatch(null), []);
+  const leaveMatch = useCallback(() => setMatch(null), []);
 
-  if (computerMatch !== null) {
-    return <ComputerMatchScreen key={computerMatch} difficulty={difficulty} random={random} onLeave={leaveMatch} />;
+  if (match?.mode === 'computer') {
+    return <ComputerMatchScreen difficulty={difficulty} random={random} onLeave={leaveMatch} />;
+  }
+  if (match?.mode === 'local') {
+    return <LocalMatchScreen names={match.names} difficulty={difficulty} random={random} onLeave={leaveMatch} />;
   }
   if (state.phase === 'lobby') {
     return (
@@ -94,6 +100,8 @@ export function App({ random = cryptoRandom }: AppProps) {
         onDifficultyChange={changeDifficulty}
         mode={mode}
         onModeChange={changeMode}
+        names={names}
+        onNamesChange={setNames}
         onStart={start}
       />
     );

@@ -4,6 +4,8 @@ export interface PhaseDeadline<P extends string> {
   readonly phase: P;
   readonly endsAt: number;
   readonly roundId: number;
+  /** Sequential turns: whose turn this deadline belongs to. */
+  readonly turn?: string | null;
 }
 
 /**
@@ -14,17 +16,18 @@ export interface PhaseDeadline<P extends string> {
  */
 export function usePhaseTimer<P extends string>(
   deadline: PhaseDeadline<P> | null,
-  onTimeout: (phase: P, roundId: number, now: number) => void,
+  onTimeout: (phase: P, roundId: number, now: number, turn: string | null) => void,
 ): void {
   const phase = deadline?.phase;
   const endsAt = deadline?.endsAt;
   const roundId = deadline?.roundId;
+  const turn = deadline?.turn ?? null;
 
   useEffect(() => {
     if (phase === undefined || endsAt === undefined || roundId === undefined) return;
-    const id = setTimeout(() => onTimeout(phase, roundId, Date.now()), Math.max(0, endsAt - Date.now()));
+    const id = setTimeout(() => onTimeout(phase, roundId, Date.now(), turn), Math.max(0, endsAt - Date.now()));
     return () => clearTimeout(id);
-  }, [phase, endsAt, roundId, onTimeout]);
+  }, [phase, endsAt, roundId, turn, onTimeout]);
 }
 
 /** Returns the milliseconds left until `endsAt`, refreshed a few times a second. */

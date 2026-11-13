@@ -25,6 +25,7 @@ Solo mode stays exactly as it is today.
 | Online difficulty | The player who creates the room picks it. |
 | Names | Each player enters a name. On one device the defaults are "Player 1" and "Player 2". |
 | Winner | `compareOutcomes`: a complete hand beats an incomplete one, two incomplete hands tie, and equal hands tie. |
+| Vs computer | Added after the spec: a simultaneous-mode match against a computer opponent with imperfect memory (computerPlayer.ts). |
 | Unchanged | `deck`, `deal`, `pokerEvaluator`, `scoring`, the solo `gameReducer` and their tests. |
 
 ## Approach
@@ -62,10 +63,12 @@ memorizing → selecting → revealing → results
 
 - **Simultaneous (online):** both players select under one timer. Each player has their own `selected` list and a `locked` flag. The round moves to `revealing` when both have locked in or when the timer runs out. When the timer runs out, whatever each player has picked so far becomes final, with `reason: 'timeout'`.
 - **Sequential (one device):**
-  1. Player A selects with the full select timer.
-  2. `handoff` phase: no timer and the grid is hidden. Player B taps to start.
-  3. Player B selects with a fresh full select timer.
-  4. Reveal.
+  1. Memorizing ends in a `handoff` to Player A ("Ana picks first"): no timer and the grid is
+     hidden, so Player B can look away before any picks are made.
+  2. Player A selects with the full select timer.
+  3. `handoff` to Player B ("Pass to Ben").
+  4. Player B selects with a fresh full select timer.
+  5. Reveal.
 
   The player who selects first switches every round, because the second player has to remember the grid for longer.
 
