@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from './gameConfig';
 import type { FinalSelection, Round } from './gameTypes';
+import { togglePick } from './picking';
 import { scoreRound, type RoundOutcome } from './scoring';
 
 /**
@@ -74,14 +75,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TOGGLE_POSITION': {
       if (state.phase !== 'selecting') return state;
-      const { position } = action;
-      if (!Number.isInteger(position) || position < 0 || position >= state.round.grid.length) return state;
-      if (state.selected.includes(position)) {
-        return { ...state, selected: state.selected.filter((p) => p !== position) };
-      }
-      // Already holding the maximum: the player must deselect one to swap.
-      if (state.selected.length >= GAME_CONFIG.picksRequired) return state;
-      return { ...state, selected: [...state.selected, position] };
+      const selected = togglePick(state.selected, action.position, state.round.grid.length);
+      return selected === state.selected ? state : { ...state, selected };
     }
 
     case 'SUBMIT_SELECTION': {

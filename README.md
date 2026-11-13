@@ -29,6 +29,17 @@ Pick a level in the lobby. The choice is remembered in this browser, and **Play 
 Each dealt round carries its level's settings, so the reducer and UI read timings and grid shape from
 the round itself.
 
+## Vs computer
+
+Choose **Vs computer** in the lobby. You and the computer memorize the same grid, then each secretly
+pick 2 cards at the same time (you may both pick the same card). Both picks are revealed together,
+the higher five-card hand wins the round, and equal hands tie. A complete hand beats an incomplete
+one. A scoreboard keeps the running tally until you leave the match.
+
+The computer's memory depends on the level: it recalls each card correctly 50% of the time on
+Easy, 75% on Medium and 92% on Difficult, and otherwise forgets the card or mixes it up with
+another. It picks the pair that looks best from what it remembers.
+
 ## Round rules (single-player)
 
 1. **Memorize:** the level's grid of distinct cards is dealt face-up (Medium: 16 cards, 20 s). No selection is possible.
@@ -57,12 +68,15 @@ src/
     deal.ts          deal grid + community from one shuffled deck
     pokerEvaluator.ts  five-card evaluation, comparison, descriptions
     scoring.ts       round outcome, best possible pick, outcome comparison
-    gameReducer.ts   phase state machine: lobby → memorizing → selecting → revealing → results
-  app/             App shell and timer hooks (usePhaseTimer, useRemaining)
+    gameReducer.ts   solo phase state machine: lobby → memorizing → selecting → revealing → results
+    picking.ts       the shared select/release/max-2 picking rule
+    match.ts         multi-player match engine (matchReducer, tally, viewFor per-player views)
+    computerPlayer.ts  computer opponent with level-dependent imperfect memory
+  app/             App shell, timer hooks (usePhaseTimer, useRemaining), useComputerMatch
   components/      PlayingCard, CardGrid, CommunityCards, CountdownTimer, GameHeader,
                    PhaseInstructions, ResultPanel
-  screens/         LobbyScreen, GameScreen (results render inside GameScreen so the
-                   revealed grid stays visible)
+  screens/         LobbyScreen, GameScreen (solo), MatchScreen + ComputerMatchScreen (vs computer).
+                   Results render inside the game screens so the revealed grid stays visible.
 ```
 
 - The reducer is pure: the dealt round and the current time arrive in actions.

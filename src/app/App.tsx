@@ -1,28 +1,37 @@
 import { useCallback, useReducer, useRef, useState } from 'react';
 import { cryptoRandom } from '../game/deck';
 import { dealRound } from '../game/deal';
-import { DEFAULT_DIFFICULTY, isDifficulty, type Difficulty } from '../game/gameConfig';
-import { gameReducer, initialGameState } from '../game/gameReducer';
+import {
+  DEFAULT_DIFFICULTY,
+  DEFAULT_MODE,
+  isDifficulty,
+  isGameMode,
+  type Difficulty,
+  type GameMode,
+} from '../game/gameConfig';
+import { gameReducer, initialGameState, type TimedPhase } from '../game/gameReducer';
 import type { RandomFn } from '../game/gameTypes';
+import { ComputerMatchScreen } from '../screens/ComputerMatchScreen';
 import { GameScreen } from '../screens/GameScreen';
 import { LobbyScreen } from '../screens/LobbyScreen';
 import { usePhaseTimer } from './usePhaseTimer';
 
 const DIFFICULTY_KEY = 'memory-poker:difficulty';
+const MODE_KEY = 'memory-poker:mode';
 
-/** The last chosen level is a per-browser convenience; storage may be unavailable. */
-function loadDifficulty(): Difficulty {
+/** Lobby choices are a per-browser convenience; storage may be unavailable. */
+function load<T>(key: string, isValid: (value: unknown) => value is T, fallback: T): T {
   try {
-    const saved = localStorage.getItem(DIFFICULTY_KEY);
-    return isDifficulty(saved) ? saved : DEFAULT_DIFFICULTY;
+    const saved = localStorage.getItem(key);
+    return isValid(saved) ? saved : fallback;
   } catch {
-    return DEFAULT_DIFFICULTY;
+    return fallback;
   }
 }
 
-function saveDifficulty(difficulty: Difficulty): void {
+function save(key: string, value: string): void {
   try {
-    localStorage.setItem(DIFFICULTY_KEY, difficulty);
+    localStorage.setItem(key, value);
   } catch {
     // Ignore: the choice just won't be remembered.
   }
@@ -35,24 +44,59 @@ interface AppProps {
 
 export function App({ random = cryptoRandom }: AppProps) {
   const [state, dispatch] = useReducer(gameReducer, initialGameState);
-  const [difficulty, setDifficulty] = useState<Difficulty>(loadDifficulty);
+  const [difficulty, setDifficulty] = useState<Difficulty>(() => load(DIFFICULTY_KEY, isDifficulty, DEFAULT_DIFFICULTY));
+  const [mode, setMode] = useState<GameMode>(() => load(MODE_KEY, isGameMode, DEFAULT_MODE));
+  /** Key of the running computer match (a new key starts a fresh match), or null. */
+  const [computerMatch, setComputerMatch] = useState<number | null>(null);
   const nextRoundId = useRef(1);
 
-  usePhaseTimer(state, dispatch);
+  const deadline = 'endsAt' in state ? { phase: state.phase, endsAt: state.endsAt, roundId: state.round.id } : null;
+  const onTimeout = useCallback(
+    (phase: TimedPhase, roundId: number, now: number) => dispatch({ type: 'PHASE_TIMEOUT', phase, roundId, now }),
+    [],
+  );
+  usePhaseTimer(deadline, onTimeout);
 
   const changeDifficulty = useCallback((next: Difficulty) => {
     setDifficulty(next);
-    saveDifficulty(next);
+    save(DIFFICULTY_KEY, next);
   }, []);
 
-  const startRound = useCallback(() => {
+  const changeMode = useCallback((next: GameMode) => {
+    setMode(next);
+    save(MODE_KEY, next);
+  }, []);
+
+  const startSoloRound = useCallback(() => {
     const round = dealRound(nextRoundId.current++, random, difficulty);
     dispatch({ type: 'START_ROUND', round, now: Date.now() });
     window.scrollTo?.({ top: 0 });
   }, [random, difficulty]);
 
-  if (state.phase === 'lobby') {
-    return <LobbyScreen difficulty={difficulty} onDifficultyChange={changeDifficulty} onStart={startRound} />;
+  const start = useCallback(() => {
+    if (mode === 'computer') {
+      setComputerMatch((key) => (key ?? 0) + 1);
+      window.scrollTo?.({ top: 0 });
+    } else {
+      startSoloRound();
+    }
+  }, [mode, startSoloRound]);
+
+  const leaveMatch = useCallback(() => setComputerMatch(null), []);
+
+  if (computerMatch !== null) {
+    return <ComputerMatchScreen key={computerMatch} difficulty={difficulty} random={random} onLeave={leaveMatch} />;
   }
-  return <GameScreen state={state} dispatch={dispatch} onPlayAgain={startRound} />;
+  if (state.phase === 'lobby') {
+    return (
+      <LobbyScreen
+        difficulty={difficulty}
+        onDifficultyChange={changeDifficulty}
+        mode={mode}
+        onModeChange={changeMode}
+        onStart={start}
+      />
+    );
+  }
+  return <GameScreen state={state} dispatch={dispatch} onPlayAgain={startSoloRound} />;
 }

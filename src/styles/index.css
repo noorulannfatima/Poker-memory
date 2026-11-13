@@ -13,6 +13,7 @@
   --color-gold: #d8b46a;
   --color-gold-bright: #ecca84;
   --color-alert: #f07a62;
+  --color-rival: #8cc8ff;
   --color-card: #faf7f0;
   --color-card-red: #c3132f;
   --color-card-black: #16191a;
@@ -283,6 +284,26 @@
   z-index: 2;
 }
 
+/* An opponent's revealed pick: a blue ring, drawn outside yours when you share a card. */
+.opponent-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 0.85rem;
+  border: 3px solid var(--color-rival);
+  box-shadow: 0 0 20px rgb(140 200 255 / 0.4);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.grid-slot[data-selected='true'] .opponent-ring {
+  inset: -10px;
+  border-radius: 1.05rem;
+}
+
+.grid-slot[data-opponent='true']:not([data-selected='true']) {
+  transform: translateY(-5px);
+}
+
 /* Poker-chip marker showing the pick order. */
 .chip {
   position: absolute;
@@ -302,6 +323,18 @@
     repeating-conic-gradient(#f8f1de 0 20deg, #b88c3c 20deg 40deg);
   box-shadow: 0 0 0 2px #1d1606, 0 4px 10px rgb(0 0 0 / 0.6);
   animation: chip-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Bottom-left: the one corner of a card face with no rank or suit index. */
+.chip--opponent {
+  top: auto;
+  right: auto;
+  bottom: -0.55rem;
+  left: -0.55rem;
+  color: #04121f;
+  background:
+    radial-gradient(circle, var(--color-rival) 0 52%, transparent 53%),
+    repeating-conic-gradient(#eef7ff 0 20deg, #3d7fb6 20deg 40deg);
 }
 
 .best-tag {

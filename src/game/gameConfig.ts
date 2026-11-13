@@ -26,6 +26,11 @@ export interface DifficultySettings {
   readonly selectSeconds: number;
   readonly gridColumns: number;
   readonly gridRows: number;
+  /**
+   * Computer opponent: chance (0–1) that it remembers each grid card
+   * correctly. Otherwise it forgets the card or confuses it with another.
+   */
+  readonly computerMemory: number;
 }
 
 export const DIFFICULTIES: Readonly<Record<Difficulty, DifficultySettings>> = {
@@ -37,6 +42,7 @@ export const DIFFICULTIES: Readonly<Record<Difficulty, DifficultySettings>> = {
     selectSeconds: 45,
     gridColumns: 3,
     gridRows: 3,
+    computerMemory: 0.5,
   },
   medium: {
     id: 'medium',
@@ -46,6 +52,7 @@ export const DIFFICULTIES: Readonly<Record<Difficulty, DifficultySettings>> = {
     selectSeconds: 30,
     gridColumns: 4,
     gridRows: 4,
+    computerMemory: 0.75,
   },
   difficult: {
     id: 'difficult',
@@ -55,6 +62,7 @@ export const DIFFICULTIES: Readonly<Record<Difficulty, DifficultySettings>> = {
     selectSeconds: 20,
     gridColumns: 5,
     gridRows: 4,
+    computerMemory: 0.92,
   },
 };
 
@@ -68,4 +76,25 @@ export function gridSize(settings: DifficultySettings): number {
 
 export function isDifficulty(value: unknown): value is Difficulty {
   return typeof value === 'string' && (DIFFICULTY_ORDER as readonly string[]).includes(value);
+}
+
+/** Who you play against. Two players on one device and online play are planned. */
+export type GameMode = 'solo' | 'computer';
+
+export const GAME_MODES: ReadonlyArray<{ readonly id: GameMode; readonly label: string; readonly summary: string }> = [
+  { id: 'solo', label: 'Solo', summary: 'Find the best hand you can.' },
+  { id: 'computer', label: 'Vs computer', summary: 'Same grid, secret picks. Best hand wins.' },
+];
+
+export const DEFAULT_MODE: GameMode = 'solo';
+
+export function isGameMode(value: unknown): value is GameMode {
+  return value === 'solo' || value === 'computer';
+}
+
+/** How the lobby describes the computer's memory at a level. */
+export function describeComputerMemory(settings: DifficultySettings): string {
+  if (settings.computerMemory >= 0.9) return 'The computer remembers almost every card.';
+  if (settings.computerMemory >= 0.7) return 'The computer remembers most cards.';
+  return 'The computer often forgets or mixes up cards.';
 }

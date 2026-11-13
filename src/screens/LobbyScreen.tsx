@@ -3,19 +3,25 @@ import {
   DIFFICULTIES,
   DIFFICULTY_ORDER,
   GAME_CONFIG,
+  GAME_MODES,
+  describeComputerMemory,
   gridSize,
   type Difficulty,
   type DifficultySettings,
+  type GameMode,
 } from '../game/gameConfig';
 import { CATEGORY_LABEL, type HandCategory } from '../game/pokerEvaluator';
 
 interface LobbyScreenProps {
   difficulty: Difficulty;
   onDifficultyChange: (difficulty: Difficulty) => void;
+  mode: GameMode;
+  onModeChange: (mode: GameMode) => void;
   onStart: () => void;
 }
 
-function stepsFor(settings: DifficultySettings) {
+function stepsFor(settings: DifficultySettings, mode: GameMode) {
+  const vsComputer = mode === 'computer';
   const { communityCount, picksRequired } = GAME_CONFIG;
   return [
     {
@@ -31,12 +37,16 @@ function stepsFor(settings: DifficultySettings) {
     {
       title: 'Select',
       time: `${settings.selectSeconds}s`,
-      body: `Pick ${picksRequired} face-down grid positions from memory. You can change your mind until you lock in.`,
+      body: vsComputer
+        ? `Pick ${picksRequired} face-down grid positions from memory. The computer secretly picks ${picksRequired} at the same time, and you may both pick the same card.`
+        : `Pick ${picksRequired} face-down grid positions from memory. You can change your mind until you lock in.`,
     },
     {
       title: 'Reveal',
       time: null,
-      body: `The grid flips back. Your ${picksRequired} picks plus the ${communityCount} community cards make your five-card hand.`,
+      body: vsComputer
+        ? `Both sets of picks are revealed. Each player's ${picksRequired} picks plus the ${communityCount} community cards make a five-card hand, and the higher hand wins the round.`
+        : `The grid flips back. Your ${picksRequired} picks plus the ${communityCount} community cards make your five-card hand.`,
     },
   ];
 }
@@ -54,9 +64,9 @@ const RANKING: Array<[HandCategory, string]> = [
   ['high-card', 'None of the above'],
 ];
 
-export function LobbyScreen({ difficulty, onDifficultyChange, onStart }: LobbyScreenProps) {
+export function LobbyScreen({ difficulty, onDifficultyChange, mode, onModeChange, onStart }: LobbyScreenProps) {
   const settings = DIFFICULTIES[difficulty];
-  const steps = stepsFor(settings);
+  const steps = stepsFor(settings, mode);
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col justify-center px-4 py-10 sm:px-6 sm:py-16">
@@ -71,6 +81,31 @@ export function LobbyScreen({ difficulty, onDifficultyChange, onStart }: LobbySc
         </p>
 
         <fieldset className="mx-auto mt-8 max-w-xl">
+          <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
+            Play
+          </legend>
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {GAME_MODES.map((option) => (
+              <label
+                key={option.id}
+                className="cursor-pointer rounded-2xl border border-line bg-charcoal/70 px-3 py-3 text-center transition hover:border-gold/50 has-[:checked]:border-gold has-[:checked]:bg-felt has-[:checked]:shadow-[0_0_0_1px_var(--color-gold)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-gold-bright"
+              >
+                <input
+                  type="radio"
+                  name="mode"
+                  value={option.id}
+                  checked={mode === option.id}
+                  onChange={() => onModeChange(option.id)}
+                  className="sr-only"
+                />
+                <span className="block font-semibold text-ink">{option.label}</span>
+                <span className="mt-0.5 block text-xs text-muted">{option.summary}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="mx-auto mt-6 max-w-xl">
           <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
             Choose a level
           </legend>
@@ -103,6 +138,7 @@ export function LobbyScreen({ difficulty, onDifficultyChange, onStart }: LobbySc
           </div>
           <p className="mx-auto mt-3 min-h-[2.5rem] max-w-md text-sm leading-relaxed text-muted" aria-live="polite">
             {settings.summary}
+            {mode === 'computer' && ` ${describeComputerMemory(settings)}`}
           </p>
         </fieldset>
 
@@ -112,7 +148,7 @@ export function LobbyScreen({ difficulty, onDifficultyChange, onStart }: LobbySc
           autoFocus
           className="mt-5 rounded-2xl bg-gold px-10 py-4 text-lg font-semibold text-night shadow-[0_12px_32px_-12px_rgb(216_180_106/0.8)] transition hover:bg-gold-bright active:translate-y-px"
         >
-          Start {settings.label.toLowerCase()} game
+          Start {settings.label.toLowerCase()} game{mode === 'computer' ? ' vs computer' : ''}
         </button>
       </div>
 

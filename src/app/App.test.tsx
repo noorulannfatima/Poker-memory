@@ -177,8 +177,8 @@ describe('App — difficulty levels', () => {
 
   it('defaults to medium and offers easy, medium and difficult', () => {
     render(<App />);
-    const radios = screen.getAllByRole('radio');
-    expect(radios).toHaveLength(3);
+    const levels = within(screen.getByRole('group', { name: 'Choose a level' })).getAllByRole('radio');
+    expect(levels).toHaveLength(3);
     expect(screen.getByRole('radio', { name: /^Medium/ })).toBeChecked();
     expect(screen.getByRole('button', { name: 'Start medium game' })).toBeInTheDocument();
   });

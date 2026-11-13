@@ -1,25 +1,30 @@
-import { useEffect, useState, type Dispatch } from 'react';
-import type { GameAction, GameState } from '../game/gameReducer';
+import { useEffect, useState } from 'react';
+
+export interface PhaseDeadline<P extends string> {
+  readonly phase: P;
+  readonly endsAt: number;
+  readonly roundId: number;
+}
 
 /**
- * Dispatches PHASE_TIMEOUT when the current timed phase ends. The timeout is
- * cleared whenever the phase or round changes and when the component
- * unmounts, and the reducer also ignores timeouts for any other phase/round.
+ * Calls `onTimeout` when the current timed phase ends. The timeout is cleared
+ * whenever the phase or round changes and when the component unmounts; the
+ * reducers also ignore timeouts for any other phase or round.
+ * `onTimeout` must be stable (wrap it in useCallback).
  */
-export function usePhaseTimer(state: GameState, dispatch: Dispatch<GameAction>): void {
-  const timed = 'endsAt' in state ? state : null;
-  const phase = timed?.phase;
-  const endsAt = timed?.endsAt;
-  const roundId = timed?.round.id;
+export function usePhaseTimer<P extends string>(
+  deadline: PhaseDeadline<P> | null,
+  onTimeout: (phase: P, roundId: number, now: number) => void,
+): void {
+  const phase = deadline?.phase;
+  const endsAt = deadline?.endsAt;
+  const roundId = deadline?.roundId;
 
   useEffect(() => {
     if (phase === undefined || endsAt === undefined || roundId === undefined) return;
-    const id = setTimeout(
-      () => dispatch({ type: 'PHASE_TIMEOUT', phase, roundId, now: Date.now() }),
-      Math.max(0, endsAt - Date.now()),
-    );
+    const id = setTimeout(() => onTimeout(phase, roundId, Date.now()), Math.max(0, endsAt - Date.now()));
     return () => clearTimeout(id);
-  }, [phase, endsAt, roundId, dispatch]);
+  }, [phase, endsAt, roundId, onTimeout]);
 }
 
 /** Returns the milliseconds left until `endsAt`, refreshed a few times a second. */

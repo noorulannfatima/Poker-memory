@@ -47,3 +47,12 @@ export function cardShort(card: Card): string {
 export function cardLongName(card: Card): string {
   return `${rankName(card.rank)} of ${card.suit}`;
 }
+
+/** Short text for the cards at some grid positions, e.g. "A♠ + 10♥". */
+export function describePositions(grid: readonly Card[], positions: readonly number[]): string {
+  return positions
+    .map((p) => grid[p])
+    .filter((card): card is Card => card !== undefined)
+    .map(cardShort)
+    .join(' + ');
+}
