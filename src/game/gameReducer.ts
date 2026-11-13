@@ -1,4 +1,4 @@
-import { GAME_CONFIG, GRID_SIZE } from './gameConfig';
+import { GAME_CONFIG } from './gameConfig';
 import type { FinalSelection, Round } from './gameTypes';
 import { scoreRound, type RoundOutcome } from './scoring';
 
@@ -68,14 +68,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         phase: 'memorizing',
         round: action.round,
-        endsAt: action.now + seconds(GAME_CONFIG.memorizeSeconds),
+        endsAt: action.now + seconds(action.round.settings.memorizeSeconds),
       };
     }
 
     case 'TOGGLE_POSITION': {
       if (state.phase !== 'selecting') return state;
       const { position } = action;
-      if (!Number.isInteger(position) || position < 0 || position >= GRID_SIZE) return state;
+      if (!Number.isInteger(position) || position < 0 || position >= state.round.grid.length) return state;
       if (state.selected.includes(position)) {
         return { ...state, selected: state.selected.filter((p) => p !== position) };
       }
@@ -99,7 +99,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             phase: 'selecting',
             round: state.round,
             selected: [],
-            endsAt: action.now + seconds(GAME_CONFIG.selectSeconds),
+            endsAt: action.now + seconds(state.round.settings.selectSeconds),
           };
         case 'selecting':
           return startRevealing(state.round, { positions: state.selected, reason: 'timeout' }, action.now);

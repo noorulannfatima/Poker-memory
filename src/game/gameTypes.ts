@@ -1,3 +1,5 @@
+import type { DifficultySettings } from './gameConfig';
+
 /**
  * Core domain types. Everything in `src/game` is framework-agnostic so the
  * same rules can later run on a server or drive a multiplayer client.
@@ -21,7 +23,9 @@ export type RandomFn = () => number;
 export interface Round {
   /** Monotonic id used to ignore stale timer events from earlier rounds. */
   readonly id: number;
-  /** 16 face-down grid cards, indexed by grid position 0–15 (row-major). */
+  /** The difficulty this round was dealt at (grid shape and timings). */
+  readonly settings: DifficultySettings;
+  /** Face-down grid cards, indexed by grid position (row-major). */
   readonly grid: readonly Card[];
   /** 3 community cards, distinct from the grid. */
   readonly community: readonly Card[];

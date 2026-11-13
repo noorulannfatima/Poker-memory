@@ -9,16 +9,17 @@ const STEPS: Array<{ label: string; phases: Phase[] }> = [
 
 interface GameHeaderProps {
   phase: Phase;
+  difficulty: string;
   timer: ReactNode;
   onExit: () => void;
 }
 
-export function GameHeader({ phase, timer, onExit }: GameHeaderProps) {
+export function GameHeader({ phase, difficulty, timer, onExit }: GameHeaderProps) {
   const activeIndex = STEPS.findIndex((step) => step.phases.includes(phase));
 
   return (
     <header className="flex items-center justify-between gap-4 py-3 sm:py-4">
-      <div className="flex min-w-0 items-center gap-5">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-5">
         <button
           type="button"
           onClick={onExit}
@@ -28,6 +29,10 @@ export function GameHeader({ phase, timer, onExit }: GameHeaderProps) {
         >
           Memory <span className="text-gold">Poker</span>
         </button>
+        <span className="shrink-0 rounded-full border border-gold/35 px-2.5 py-0.5 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-gold/90">
+          <span className="sr-only">Level: </span>
+          {difficulty}
+        </span>
         <ol className="hidden items-center gap-1.5 md:flex" aria-label="Round progress">
           {STEPS.map((step, i) => {
             const state = i < activeIndex ? 'done' : i === activeIndex ? 'active' : 'todo';

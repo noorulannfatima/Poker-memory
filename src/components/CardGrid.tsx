@@ -11,6 +11,7 @@ interface CardGridProps {
 }
 
 export function CardGrid({ state, onToggle }: CardGridProps) {
+  const { gridColumns, gridRows } = state.round.settings;
   const faceUp = isGridFaceUp(state);
   const selected = selectedPositions(state);
   const canSelect = state.phase === 'selecting';
@@ -24,7 +25,13 @@ export function CardGrid({ state, onToggle }: CardGridProps) {
       role="group"
       aria-label="Card grid"
       className="card-grid mx-auto grid gap-2.5 sm:gap-3.5"
-      style={{ gridTemplateColumns: `repeat(${GAME_CONFIG.gridColumns}, minmax(0, 1fr))` }}
+      style={
+        {
+          gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+          '--grid-cols': gridColumns,
+          '--grid-rows': gridRows,
+        } as CSSProperties
+      }
     >
       {state.round.grid.map((card, position) => {
         const pickIndex = selected.indexOf(position);
@@ -32,8 +39,8 @@ export function CardGrid({ state, onToggle }: CardGridProps) {
         const selectable = canSelect && (isSelected || !isFull);
         const isBest = bestPositions.includes(position);
         const dimmed = state.phase === 'results' && !isSelected && !isBest;
-        const row = Math.floor(position / GAME_CONFIG.gridColumns) + 1;
-        const col = (position % GAME_CONFIG.gridColumns) + 1;
+        const row = Math.floor(position / gridColumns) + 1;
+        const col = (position % gridColumns) + 1;
         const where = `Row ${row}, column ${col}`;
         const label = faceUp
           ? `${where}: ${cardLongName(card)}${isSelected ? ', your pick' : ''}`

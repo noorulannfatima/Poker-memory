@@ -86,16 +86,18 @@
     0 20px 50px -20px rgb(0 0 0 / 0.8);
 }
 
-/* The grid is sized by both width and the viewport height, so all four rows
-   stay on screen on short phones as well as on desktops. */
+/* The grid is sized by both width and the viewport height, so every row
+   stays on screen on short phones as well as on desktops. --grid-cols and
+   --grid-rows are set per difficulty; 1.46 ≈ card aspect (7/5) plus gaps. */
 .card-grid {
-  width: min(100%, 34rem, calc((100dvh - 19rem) / 1.46));
+  --grid-ratio: calc(var(--grid-rows, 4) * 1.46 / var(--grid-cols, 4));
+  width: min(100%, calc(var(--grid-cols, 4) * 8.5rem), calc((100dvh - 19rem) / var(--grid-ratio)));
   min-width: 15.5rem;
 }
 
 @media (min-width: 1024px) {
   .card-grid {
-    width: min(100%, 36rem, calc((100dvh - 9.5rem) / 1.46));
+    width: min(100%, calc(var(--grid-cols, 4) * 9rem), calc((100dvh - 9.5rem) / var(--grid-ratio)));
   }
 }
 

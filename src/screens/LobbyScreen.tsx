@@ -1,33 +1,45 @@
 import type { CSSProperties } from 'react';
-import { GAME_CONFIG, GRID_SIZE } from '../game/gameConfig';
+import {
+  DIFFICULTIES,
+  DIFFICULTY_ORDER,
+  GAME_CONFIG,
+  gridSize,
+  type Difficulty,
+  type DifficultySettings,
+} from '../game/gameConfig';
 import { CATEGORY_LABEL, type HandCategory } from '../game/pokerEvaluator';
 
 interface LobbyScreenProps {
+  difficulty: Difficulty;
+  onDifficultyChange: (difficulty: Difficulty) => void;
   onStart: () => void;
 }
 
-const STEPS = [
-  {
-    title: 'Memorize',
-    time: `${GAME_CONFIG.memorizeSeconds}s`,
-    body: `${GRID_SIZE} cards are dealt face-up in a ${GAME_CONFIG.gridColumns}×${GAME_CONFIG.gridRows} grid. Remember where they are.`,
-  },
-  {
-    title: 'The board',
-    time: null,
-    body: `The grid flips face-down and ${GAME_CONFIG.communityCount} community cards are revealed.`,
-  },
-  {
-    title: 'Select',
-    time: `${GAME_CONFIG.selectSeconds}s`,
-    body: `Pick ${GAME_CONFIG.picksRequired} face-down grid positions from memory. You can change your mind until you lock in.`,
-  },
-  {
-    title: 'Reveal',
-    time: null,
-    body: `The grid flips back. Your ${GAME_CONFIG.picksRequired} picks plus the ${GAME_CONFIG.communityCount} community cards make your five-card hand.`,
-  },
-];
+function stepsFor(settings: DifficultySettings) {
+  const { communityCount, picksRequired } = GAME_CONFIG;
+  return [
+    {
+      title: 'Memorize',
+      time: `${settings.memorizeSeconds}s`,
+      body: `${gridSize(settings)} cards are dealt face-up in a ${settings.gridColumns}×${settings.gridRows} grid. Remember where they are.`,
+    },
+    {
+      title: 'The board',
+      time: null,
+      body: `The grid flips face-down and ${communityCount} community cards are revealed.`,
+    },
+    {
+      title: 'Select',
+      time: `${settings.selectSeconds}s`,
+      body: `Pick ${picksRequired} face-down grid positions from memory. You can change your mind until you lock in.`,
+    },
+    {
+      title: 'Reveal',
+      time: null,
+      body: `The grid flips back. Your ${picksRequired} picks plus the ${communityCount} community cards make your five-card hand.`,
+    },
+  ];
+}
 
 const RANKING: Array<[HandCategory, string]> = [
   ['royal-flush', 'A K Q J 10, same suit'],
@@ -42,7 +54,10 @@ const RANKING: Array<[HandCategory, string]> = [
   ['high-card', 'None of the above'],
 ];
 
-export function LobbyScreen({ onStart }: LobbyScreenProps) {
+export function LobbyScreen({ difficulty, onDifficultyChange, onStart }: LobbyScreenProps) {
+  const settings = DIFFICULTIES[difficulty];
+  const steps = stepsFor(settings);
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col justify-center px-4 py-10 sm:px-6 sm:py-16">
       <div className="fade-up text-center">
@@ -51,16 +66,53 @@ export function LobbyScreen({ onStart }: LobbyScreenProps) {
           Memory <span className="text-gold">Poker</span>
         </h1>
         <p className="mx-auto mt-4 max-w-md text-lg leading-relaxed text-muted">
-          {GRID_SIZE} cards. {GAME_CONFIG.memorizeSeconds} seconds to memorize. Pick{' '}
-          {GAME_CONFIG.picksRequired} from memory to build the best poker hand you can.
+          Memorize a grid of cards, then pick {GAME_CONFIG.picksRequired} from memory to build the best poker
+          hand you can.
         </p>
+
+        <fieldset className="mx-auto mt-8 max-w-xl">
+          <legend className="mx-auto mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-gold">
+            Choose a level
+          </legend>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {DIFFICULTY_ORDER.map((id) => {
+              const level = DIFFICULTIES[id];
+              return (
+                <label
+                  key={id}
+                  className="relative cursor-pointer rounded-2xl border border-line bg-charcoal/70 px-2 py-3 text-center transition hover:border-gold/50 has-[:checked]:border-gold has-[:checked]:bg-felt has-[:checked]:shadow-[0_0_0_1px_var(--color-gold),0_10px_30px_-12px_rgb(216_180_106/0.5)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-gold-bright sm:px-3"
+                >
+                  <input
+                    type="radio"
+                    name="difficulty"
+                    value={id}
+                    checked={difficulty === id}
+                    onChange={() => onDifficultyChange(id)}
+                    className="sr-only"
+                  />
+                  <span className="block font-display text-lg font-semibold text-ink sm:text-xl">{level.label}</span>
+                  <span className="mt-1 block text-xs text-muted tabular-nums">
+                    {level.gridColumns}×{level.gridRows} · {gridSize(level)} cards
+                  </span>
+                  <span className="mt-0.5 block text-xs text-subtle tabular-nums">
+                    {level.memorizeSeconds}s / {level.selectSeconds}s
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <p className="mx-auto mt-3 min-h-[2.5rem] max-w-md text-sm leading-relaxed text-muted" aria-live="polite">
+            {settings.summary}
+          </p>
+        </fieldset>
+
         <button
           type="button"
           onClick={onStart}
           autoFocus
-          className="mt-8 rounded-2xl bg-gold px-10 py-4 text-lg font-semibold text-night shadow-[0_12px_32px_-12px_rgb(216_180_106/0.8)] transition hover:bg-gold-bright active:translate-y-px"
+          className="mt-5 rounded-2xl bg-gold px-10 py-4 text-lg font-semibold text-night shadow-[0_12px_32px_-12px_rgb(216_180_106/0.8)] transition hover:bg-gold-bright active:translate-y-px"
         >
-          Start game
+          Start {settings.label.toLowerCase()} game
         </button>
       </div>
 
@@ -69,7 +121,7 @@ export function LobbyScreen({ onStart }: LobbyScreenProps) {
           How a round works
         </h2>
         <ol className="mt-5 grid gap-3 sm:grid-cols-2">
-          {STEPS.map((step, i) => (
+          {steps.map((step, i) => (
             <li key={step.title} className="flex gap-4 rounded-2xl border border-line bg-charcoal/70 p-4">
               <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/40 font-display text-base font-semibold text-gold">
                 {i + 1}

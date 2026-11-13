@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { cardId, createDeck, createSeededRandom, cryptoRandom, shuffle } from './deck';
 import { dealRound } from './deal';
-import { GAME_CONFIG, GRID_SIZE } from './gameConfig';
+import { DIFFICULTIES, DIFFICULTY_ORDER, GAME_CONFIG, gridSize } from './gameConfig';
+
+const GRID_SIZE = gridSize(DIFFICULTIES.medium);
 
 describe('createDeck', () => {
   it('creates 52 unique cards: 13 ranks × 4 suits', () => {
@@ -72,6 +74,15 @@ describe('dealRound', () => {
       const ids = [...round.grid, ...round.community].map(cardId);
       expect(new Set(ids).size).toBe(GRID_SIZE + GAME_CONFIG.communityCount);
     }
+  });
+
+  it.each(DIFFICULTY_ORDER)('deals the right grid for %s, all cards distinct', (difficulty) => {
+    const settings = DIFFICULTIES[difficulty];
+    const round = dealRound(1, createSeededRandom(3), difficulty);
+    expect(round.settings).toBe(settings);
+    expect(round.grid).toHaveLength(settings.gridColumns * settings.gridRows);
+    const ids = [...round.grid, ...round.community].map(cardId);
+    expect(new Set(ids).size).toBe(round.grid.length + GAME_CONFIG.communityCount);
   });
 
   it('is reproducible with an injected random function', () => {

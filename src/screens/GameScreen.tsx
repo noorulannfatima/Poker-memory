@@ -15,22 +15,30 @@ interface GameScreenProps {
   onPlayAgain: () => void;
 }
 
-const ANNOUNCEMENTS: Record<GameScreenProps['state']['phase'], string> = {
-  memorizing: `Memorize the grid. ${GAME_CONFIG.memorizeSeconds} seconds.`,
-  selecting: `Cards are face-down and the community cards are revealed. Choose ${GAME_CONFIG.picksRequired} cards within ${GAME_CONFIG.selectSeconds} seconds.`,
-  revealing: 'Selection closed. Revealing the grid.',
-  results: 'Round complete. Results are shown.',
-};
+function announcement(state: GameScreenProps['state']): string {
+  const { settings } = state.round;
+  switch (state.phase) {
+    case 'memorizing':
+      return `${settings.label} level. Memorize the grid of ${state.round.grid.length} cards. ${settings.memorizeSeconds} seconds.`;
+    case 'selecting':
+      return `Cards are face-down and the community cards are revealed. Choose ${GAME_CONFIG.picksRequired} cards within ${settings.selectSeconds} seconds.`;
+    case 'revealing':
+      return 'Selection closed. Revealing the grid.';
+    case 'results':
+      return 'Round complete. Results are shown.';
+  }
+}
 
 export function GameScreen({ state, dispatch, onPlayAgain }: GameScreenProps) {
+  const { settings } = state.round;
   const endsAt = 'endsAt' in state ? state.endsAt : null;
   const remaining = useRemaining(endsAt);
 
   const timer =
     state.phase === 'memorizing' ? (
-      <CountdownTimer label="Memorize" remainingMs={remaining} totalMs={GAME_CONFIG.memorizeSeconds * 1000} />
+      <CountdownTimer label="Memorize" remainingMs={remaining} totalMs={settings.memorizeSeconds * 1000} />
     ) : state.phase === 'selecting' ? (
-      <CountdownTimer label="Select" remainingMs={remaining} totalMs={GAME_CONFIG.selectSeconds * 1000} />
+      <CountdownTimer label="Select" remainingMs={remaining} totalMs={settings.selectSeconds * 1000} />
     ) : null;
 
   const communityVisible = state.phase !== 'memorizing';
@@ -42,10 +50,10 @@ export function GameScreen({ state, dispatch, onPlayAgain }: GameScreenProps) {
         state.phase === 'selecting' ? 'pb-24 lg:pb-8' : 'pb-8'
       }`}
     >
-      <GameHeader phase={state.phase} timer={timer} onExit={exit} />
+      <GameHeader phase={state.phase} difficulty={settings.label} timer={timer} onExit={exit} />
       <h1 className="sr-only">Memory Poker</h1>
       <p className="sr-only" role="status" aria-live="polite">
-        {ANNOUNCEMENTS[state.phase]}
+        {announcement(state)}
       </p>
 
       <main className="game-layout flex-1">

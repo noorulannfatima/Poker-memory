@@ -9,13 +9,14 @@ interface PhaseInstructionsProps {
 
 export function PhaseInstructions({ state, onSubmit }: PhaseInstructionsProps) {
   const required = GAME_CONFIG.picksRequired;
+  const { settings, grid } = state.round;
 
   if (state.phase === 'memorizing') {
     return (
-      <Panel eyebrow="Phase 1 · Memorize" title="Study the grid">
+      <Panel eyebrow={`Phase 1 · Memorize · ${settings.label}`} title="Study the grid">
         <p>
-          Remember where the cards are. When the timer ends, all 16 flip face-down and the community cards
-          are revealed.
+          Remember where the cards are. When the timer ends, all {grid.length} flip face-down and the
+          community cards are revealed.
         </p>
       </Panel>
     );
@@ -36,7 +37,7 @@ export function PhaseInstructions({ state, onSubmit }: PhaseInstructionsProps) {
   const full = count >= required;
 
   return (
-    <Panel eyebrow="Phase 2 · Select" title={`Choose ${required} cards`}>
+    <Panel eyebrow={`Phase 2 · Select · ${settings.label}`} title={`Choose ${required} cards`}>
       <p>
         Pick the {required} grid positions that make the best five-card hand with the community cards.
       </p>

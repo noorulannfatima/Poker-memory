@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { hand } from '../test/cards';
 import { createSeededRandom } from './deck';
 import { dealRound } from './deal';
-import { GAME_CONFIG } from './gameConfig';
+import { DIFFICULTIES } from './gameConfig';
 import { gameReducer, initialGameState, isGridFaceUp, selectedPositions, type GameAction, type GameState } from './gameReducer';
 import type { Round } from './gameTypes';
 import { compareOutcomes, findBestPick, scoreRound } from './scoring';
@@ -26,7 +26,7 @@ describe('gameReducer — round lifecycle', () => {
     const state = gameReducer(initialGameState, { type: 'START_ROUND', round, now: T0 });
     expect(state.phase).toBe('memorizing');
     if (state.phase !== 'memorizing') throw new Error();
-    expect(state.endsAt).toBe(T0 + GAME_CONFIG.memorizeSeconds * 1000);
+    expect(state.endsAt).toBe(T0 + round.settings.memorizeSeconds * 1000);
     expect(isGridFaceUp(state)).toBe(true);
   });
 
@@ -35,7 +35,7 @@ describe('gameReducer — round lifecycle', () => {
     expect(state.phase).toBe('selecting');
     if (state.phase !== 'selecting') throw new Error();
     expect(state.selected).toEqual([]);
-    expect(state.endsAt).toBe(T0 + 20_000 + GAME_CONFIG.selectSeconds * 1000);
+    expect(state.endsAt).toBe(T0 + 20_000 + round.settings.selectSeconds * 1000);
     expect(isGridFaceUp(state)).toBe(false);
   });
 
@@ -143,6 +143,28 @@ describe('gameReducer — selection rules', () => {
   });
 });
 
+describe('gameReducer — difficulty levels', () => {
+  it('uses the timings carried by the round', () => {
+    const easy = dealRound(5, createSeededRandom(1), 'easy');
+    const memorizing = gameReducer(initialGameState, { type: 'START_ROUND', round: easy, now: T0 });
+    if (memorizing.phase !== 'memorizing') throw new Error();
+    expect(memorizing.endsAt).toBe(T0 + DIFFICULTIES.easy.memorizeSeconds * 1000);
+    const selecting = gameReducer(memorizing, { type: 'PHASE_TIMEOUT', phase: 'memorizing', roundId: 5, now: T0 + 1 });
+    if (selecting.phase !== 'selecting') throw new Error();
+    expect(selecting.endsAt).toBe(T0 + 1 + DIFFICULTIES.easy.selectSeconds * 1000);
+  });
+
+  it('accepts positions only within the round’s grid', () => {
+    const easy = toSelecting(dealRound(5, createSeededRandom(1), 'easy'));
+    expect(gameReducer(easy, { type: 'TOGGLE_POSITION', position: 9 })).toBe(easy);
+    expect(selectedPositions(gameReducer(easy, { type: 'TOGGLE_POSITION', position: 8 }))).toEqual([8]);
+
+    const hard = toSelecting(dealRound(6, createSeededRandom(1), 'difficult'));
+    expect(selectedPositions(gameReducer(hard, { type: 'TOGGLE_POSITION', position: 19 }))).toEqual([19]);
+    expect(gameReducer(hard, { type: 'TOGGLE_POSITION', position: 20 })).toBe(hard);
+  });
+});
+
 describe('gameReducer — timers', () => {
   it('finalizes a partial selection on timeout as incomplete', () => {
     const state = run(
@@ -197,6 +219,7 @@ describe('scoring', () => {
   // possible hand is four of a kind.
   const fixed: Round = {
     id: 99,
+    settings: DIFFICULTIES.medium,
     community: hand('9h 9c 2d'),
     grid: hand('9s 9d Ah Kc 3s 4s 5s 6d 7d 8c Tc Jh Qh Ks 2h 3d'),
   };

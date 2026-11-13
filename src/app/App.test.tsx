@@ -2,11 +2,13 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSeededRandom } from '../game/deck';
 import { dealRound } from '../game/deal';
-import { GAME_CONFIG } from '../game/gameConfig';
+import { DIFFICULTIES, GAME_CONFIG } from '../game/gameConfig';
 import { scoreRound } from '../game/scoring';
 import { App } from './App';
 
 const SEED = 2024;
+const MEDIUM = DIFFICULTIES.medium;
+const START = /^Start .*game$/;
 const CARD_NAME = /(Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Jack|Queen|King|Ace) of (spades|hearts|diamonds|clubs)/;
 
 function advance(ms: number) {
@@ -21,11 +23,11 @@ function slot(position: number) {
 
 function startGame() {
   render(<App random={createSeededRandom(SEED)} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+  fireEvent.click(screen.getByRole('button', { name: START }));
 }
 
 function finishMemorizing() {
-  advance(GAME_CONFIG.memorizeSeconds * 1000);
+  advance(MEDIUM.memorizeSeconds * 1000);
   // Let the flip-down animation finish so faces leave the DOM.
   advance(1000);
 }
@@ -42,9 +44,9 @@ describe('App — single-player round', () => {
   it('shows the lobby with the configured phase durations', () => {
     render(<App />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Memory Poker');
-    expect(screen.getByText(`${GAME_CONFIG.memorizeSeconds}s`)).toBeInTheDocument();
-    expect(screen.getByText(`${GAME_CONFIG.selectSeconds}s`)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start game' })).toBeEnabled();
+    expect(screen.getByText(`${MEDIUM.memorizeSeconds}s`)).toBeInTheDocument();
+    expect(screen.getByText(`${MEDIUM.selectSeconds}s`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: START })).toBeEnabled();
   });
 
   it('deals 16 unique face-up cards that cannot be selected while memorizing', () => {
@@ -57,10 +59,10 @@ describe('App — single-player round', () => {
     labels.forEach((label) => expect(label).toMatch(CARD_NAME));
     slots.forEach((s) => expect(s).toBeDisabled());
 
-    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Memorize: ${GAME_CONFIG.memorizeSeconds} seconds left`);
+    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Memorize: ${MEDIUM.memorizeSeconds} seconds left`);
     advance(5000);
     expect(screen.getByTestId('countdown')).toHaveAccessibleName(
-      `Memorize: ${GAME_CONFIG.memorizeSeconds - 5} seconds left`,
+      `Memorize: ${MEDIUM.memorizeSeconds - 5} seconds left`,
     );
 
     // Community cards stay hidden while memorizing.
@@ -83,7 +85,7 @@ describe('App — single-player round', () => {
     const community = screen.getByRole('region', { name: 'Community cards' });
     expect(within(community).getAllByText(CARD_NAME)).toHaveLength(GAME_CONFIG.communityCount);
     // finishMemorizing() waited one extra second for the flip animation.
-    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Select: ${GAME_CONFIG.selectSeconds - 1} seconds left`);
+    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Select: ${MEDIUM.selectSeconds - 1} seconds left`);
   });
 
   it('lets the player pick exactly two, change a pick, submit, and see a correct result', () => {
@@ -112,7 +114,7 @@ describe('App — single-player round', () => {
     expect(slot(1)).toBeDisabled();
     advance(GAME_CONFIG.revealMs);
 
-    const expected = scoreRound(dealRound(1, createSeededRandom(SEED)), { positions: [5, 9], reason: 'submitted' });
+    const expected = scoreRound(dealRound(1, createSeededRandom(SEED), 'medium'), { positions: [5, 9], reason: 'submitted' });
     if (expected.kind !== 'complete') throw new Error('expected complete hand');
     expect(screen.getByRole('heading', { name: expected.hand.label })).toBeInTheDocument();
     expect(screen.getByText(expected.hand.description)).toBeInTheDocument();
@@ -124,7 +126,7 @@ describe('App — single-player round', () => {
     startGame();
     finishMemorizing();
     fireEvent.click(slot(3));
-    advance(GAME_CONFIG.selectSeconds * 1000);
+    advance(MEDIUM.selectSeconds * 1000);
 
     fireEvent.click(slot(4)); // too late
     expect(slot(4)).toBeDisabled();
@@ -146,24 +148,89 @@ describe('App — single-player round', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Play again' }));
     const nextLabels = screen.getAllByTestId(/grid-slot-/).map((s) => s.getAttribute('aria-label'));
     expect(nextLabels).not.toEqual(firstLabels);
-    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Memorize: ${GAME_CONFIG.memorizeSeconds} seconds left`);
+    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Memorize: ${MEDIUM.memorizeSeconds} seconds left`);
     screen.getAllByTestId(/grid-slot-/).forEach((s) => expect(s).not.toHaveAttribute('aria-pressed'));
   });
 
   it('back to lobby cancels the running timers', () => {
     startGame();
     fireEvent.click(screen.getByRole('button', { name: 'Exit to lobby' }));
-    expect(screen.getByRole('button', { name: 'Start game' })).toBeInTheDocument();
-    advance(GAME_CONFIG.memorizeSeconds * 1000 + 5000);
-    expect(screen.getByRole('button', { name: 'Start game' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: START })).toBeInTheDocument();
+    advance(MEDIUM.memorizeSeconds * 1000 + 5000);
+    expect(screen.getByRole('button', { name: START })).toBeInTheDocument();
   });
 
   it('clears timers on unmount', () => {
     const { unmount } = render(<App random={createSeededRandom(SEED)} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    fireEvent.click(screen.getByRole('button', { name: START }));
     advance(500);
     expect(vi.getTimerCount()).toBeGreaterThan(0);
     unmount();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('App — difficulty levels', () => {
+  function chooseLevel(label: string) {
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${label}`) }));
+  }
+
+  it('defaults to medium and offers easy, medium and difficult', () => {
+    render(<App />);
+    const radios = screen.getAllByRole('radio');
+    expect(radios).toHaveLength(3);
+    expect(screen.getByRole('radio', { name: /^Medium/ })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Start medium game' })).toBeInTheDocument();
+  });
+
+  it('easy: 3×3 grid, longer timers, community cards hidden until the grid flips', () => {
+    const easy = DIFFICULTIES.easy;
+    render(<App random={createSeededRandom(SEED)} />);
+    chooseLevel('Easy');
+    fireEvent.click(screen.getByRole('button', { name: 'Start easy game' }));
+
+    expect(screen.getAllByTestId(/grid-slot-/)).toHaveLength(9);
+    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Memorize: ${easy.memorizeSeconds} seconds left`);
+    expect(screen.getByText('Revealed after memorizing')).toBeInTheDocument();
+    expect(screen.getByText('Level:', { exact: false }).parentElement).toHaveTextContent('Easy');
+
+    advance(easy.memorizeSeconds * 1000);
+    const community = screen.getByRole('region', { name: 'Community cards' });
+    expect(within(community).getAllByText(CARD_NAME)).toHaveLength(GAME_CONFIG.communityCount);
+    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Select: ${easy.selectSeconds} seconds left`);
+    fireEvent.click(slot(0));
+    fireEvent.click(slot(8));
+    fireEvent.click(screen.getByRole('button', { name: 'Lock in picks' }));
+    advance(GAME_CONFIG.revealMs);
+
+    // Play again keeps the level.
+    fireEvent.click(screen.getByRole('button', { name: 'Play again' }));
+    expect(screen.getAllByTestId(/grid-slot-/)).toHaveLength(9);
+  });
+
+  it('difficult: 5×4 grid with shorter timers', () => {
+    const hard = DIFFICULTIES.difficult;
+    render(<App random={createSeededRandom(SEED)} />);
+    chooseLevel('Difficult');
+    fireEvent.click(screen.getByRole('button', { name: 'Start difficult game' }));
+
+    expect(screen.getAllByTestId(/grid-slot-/)).toHaveLength(20);
+    expect(screen.getByText('Revealed after memorizing')).toBeInTheDocument();
+    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Memorize: ${hard.memorizeSeconds} seconds left`);
+    advance(hard.memorizeSeconds * 1000);
+    expect(screen.getByTestId('countdown')).toHaveAccessibleName(`Select: ${hard.selectSeconds} seconds left`);
+    fireEvent.click(slot(19));
+    expect(slot(19)).toHaveAttribute('aria-pressed', 'true');
+    advance(hard.selectSeconds * 1000);
+    advance(GAME_CONFIG.revealMs);
+    expect(screen.getByRole('heading', { name: 'Incomplete hand' })).toBeInTheDocument();
+  });
+
+  it('remembers the chosen level', () => {
+    const { unmount } = render(<App />);
+    chooseLevel('Difficult');
+    unmount();
+    render(<App />);
+    expect(screen.getByRole('radio', { name: /^Difficult/ })).toBeChecked();
   });
 });
